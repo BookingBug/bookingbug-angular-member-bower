@@ -1,0 +1,18 @@
+{
+  "name": "bookingbug-angular-member",
+  "version": "0.0.2",
+  "homepage": "https://github.com/BookingBug/bookingbug-angular-member-bower",
+  "authors": [
+    "Glenn Shoosmith <glenn@bookingbug.com>",
+    "Ed Clements <ed@bookingbug.com>"
+  ],
+  "main": "bookingbug-angular-member.js",
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ]
+}
