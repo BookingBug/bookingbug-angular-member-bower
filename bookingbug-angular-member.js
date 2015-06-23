@@ -27,6 +27,108 @@
 }).call(this);
 
 (function() {
+  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm) {
+    $scope.loading = true;
+    $scope.getUpcomingBookings = function() {
+      var params;
+      params = {
+        start_date: moment().format('YYYY-MM-DD')
+      };
+      return $scope.getBookings(params).then(function(bookings) {
+        return $scope.upcoming_bookings = bookings;
+      });
+    };
+    $scope.getPastBookings = function(num, type) {
+      var date, params;
+      date = moment().subtract(num, type);
+      params = {
+        start_date: date.format('YYYY-MM-DD'),
+        end_date: moment().format('YYYY-MM-DD')
+      };
+      return $scope.getBookings(params).then(function(bookings) {
+        return $scope.past_bookings = bookings;
+      });
+    };
+    $scope.flushBookings = function() {
+      var params;
+      params = {
+        start_date: moment().format('YYYY-MM-DD')
+      };
+      return MemberBookingService.flush($scope.member, params);
+    };
+    $scope.edit = function(booking) {
+      return booking.getAnswersPromise().then(function(answers) {
+        var answer, i, len, ref;
+        ref = answers.answers;
+        for (i = 0, len = ref.length; i < len; i++) {
+          answer = ref[i];
+          booking["question" + answer.question_id] = answer.value;
+        }
+        return ModalForm.edit({
+          model: booking,
+          title: 'Booking Details',
+          templateUrl: 'edit_booking_modal_form.html',
+          windowClass: 'member_edit_booking_form'
+        });
+      });
+    };
+    $scope.cancel = function(booking) {
+      var modalInstance;
+      modalInstance = $modal.open({
+        templateUrl: "member_booking_delete_modal.html",
+        windowClass: "bbug",
+        controller: function($scope, $rootScope, $modalInstance, booking) {
+          $scope.controller = "ModalDelete";
+          $scope.booking = booking;
+          $scope.confirm_delete = function() {
+            return $modalInstance.close(booking);
+          };
+          return $scope.cancel = function() {
+            return $modalInstance.dismiss("cancel");
+          };
+        },
+        resolve: {
+          booking: function() {
+            return booking;
+          }
+        }
+      });
+      return modalInstance.result.then(function(booking) {
+        return $scope.cancelBooking(booking);
+      });
+    };
+    $scope.getBookings = function(params) {
+      var defer;
+      $scope.loading = true;
+      defer = $q.defer();
+      MemberBookingService.query($scope.member, params).then(function(bookings) {
+        $scope.loading = false;
+        return defer.resolve(bookings);
+      }, function(err) {
+        $log.error(err.data);
+        return $scope.loading = false;
+      });
+      return defer.promise;
+    };
+    return $scope.cancelBooking = function(booking) {
+      $scope.loading = true;
+      return MemberBookingService.cancel($scope.member, booking).then(function() {
+        if ($scope.bookings) {
+          $scope.bookings = $scope.bookings.filter(function(b) {
+            return b.id !== booking.id;
+          });
+        }
+        if ($scope.removeBooking) {
+          $scope.removeBooking(booking);
+        }
+        return $scope.loading = false;
+      });
+    };
+  });
+
+}).call(this);
+
+(function() {
   angular.module('BBMember').directive('memberBookings', function($rootScope) {
     var link;
     link = function(scope, element, attrs) {
@@ -865,108 +967,6 @@
         }
         return deferred.promise;
       }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm) {
-    $scope.loading = true;
-    $scope.getUpcomingBookings = function() {
-      var params;
-      params = {
-        start_date: moment().format('YYYY-MM-DD')
-      };
-      return $scope.getBookings(params).then(function(bookings) {
-        return $scope.upcoming_bookings = bookings;
-      });
-    };
-    $scope.getPastBookings = function(num, type) {
-      var date, params;
-      date = moment().subtract(num, type);
-      params = {
-        start_date: date.format('YYYY-MM-DD'),
-        end_date: moment().format('YYYY-MM-DD')
-      };
-      return $scope.getBookings(params).then(function(bookings) {
-        return $scope.past_bookings = bookings;
-      });
-    };
-    $scope.flushBookings = function() {
-      var params;
-      params = {
-        start_date: moment().format('YYYY-MM-DD')
-      };
-      return MemberBookingService.flush($scope.member, params);
-    };
-    $scope.edit = function(booking) {
-      return booking.getAnswersPromise().then(function(answers) {
-        var answer, i, len, ref;
-        ref = answers.answers;
-        for (i = 0, len = ref.length; i < len; i++) {
-          answer = ref[i];
-          booking["question" + answer.question_id] = answer.value;
-        }
-        return ModalForm.edit({
-          model: booking,
-          title: 'Booking Details',
-          templateUrl: 'edit_booking_modal_form.html',
-          windowClass: 'member_edit_booking_form'
-        });
-      });
-    };
-    $scope.cancel = function(booking) {
-      var modalInstance;
-      modalInstance = $modal.open({
-        templateUrl: "member_booking_delete_modal.html",
-        windowClass: "bbug",
-        controller: function($scope, $rootScope, $modalInstance, booking) {
-          $scope.controller = "ModalDelete";
-          $scope.booking = booking;
-          $scope.confirm_delete = function() {
-            return $modalInstance.close(booking);
-          };
-          return $scope.cancel = function() {
-            return $modalInstance.dismiss("cancel");
-          };
-        },
-        resolve: {
-          booking: function() {
-            return booking;
-          }
-        }
-      });
-      return modalInstance.result.then(function(booking) {
-        return $scope.cancelBooking(booking);
-      });
-    };
-    $scope.getBookings = function(params) {
-      var defer;
-      $scope.loading = true;
-      defer = $q.defer();
-      MemberBookingService.query($scope.member, params).then(function(bookings) {
-        $scope.loading = false;
-        return defer.resolve(bookings);
-      }, function(err) {
-        $log.error(err.data);
-        return $scope.loading = false;
-      });
-      return defer.promise;
-    };
-    return $scope.cancelBooking = function(booking) {
-      $scope.loading = true;
-      return MemberBookingService.cancel($scope.member, booking).then(function() {
-        if ($scope.bookings) {
-          $scope.bookings = $scope.bookings.filter(function(b) {
-            return b.id !== booking.id;
-          });
-        }
-        if ($scope.removeBooking) {
-          $scope.removeBooking(booking);
-        }
-        return $scope.loading = false;
-      });
     };
   });
 
