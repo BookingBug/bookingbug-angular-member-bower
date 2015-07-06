@@ -27,7 +27,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm) {
+  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService) {
     $scope.loading = true;
     $scope.getUpcomingBookings = function() {
       var params;
@@ -110,7 +110,7 @@
       });
       return defer.promise;
     };
-    return $scope.cancelBooking = function(booking) {
+    $scope.cancelBooking = function(booking) {
       $scope.loading = true;
       return MemberBookingService.cancel($scope.member, booking).then(function() {
         if ($scope.bookings) {
@@ -123,6 +123,20 @@
         }
         return $scope.loading = false;
       });
+    };
+    return $scope.getPrePaidBookings = function(params) {
+      var defer;
+      $scope.loading = true;
+      defer = $q.defer();
+      MemberPrePaidBookingService.query($scope.member, params).then(function(bookings) {
+        $scope.loading = false;
+        $scope.pre_paid_bookings = bookings;
+        return defer.resolve(bookings);
+      }, function(err) {
+        $log.error(err.data);
+        return $scope.loading = false;
+      });
+      return defer.promise;
     };
   });
 
@@ -495,6 +509,35 @@
 }).call(this);
 
 (function() {
+  angular.module('BBMember').directive('bbMemberPrePaidBookings', function($rootScope) {
+    var link;
+    link = function(scope, element, attrs) {
+      var base, base1, getBookings;
+      $rootScope.bb || ($rootScope.bb = {});
+      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
+      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      scope.loading = true;
+      getBookings = function() {
+        return scope.getPrePaidBookings({})["finally"](function() {
+          return scope.loading = false;
+        });
+      };
+      return getBookings();
+    };
+    return {
+      link: link,
+      controller: 'MemberBookings',
+      templateUrl: 'member_pre_paid_bookings.html',
+      scope: {
+        apiUrl: '@',
+        member: '='
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
   angular.module('BBMember').directive('memberSsoLogin', function($rootScope, LoginService, $sniffer, $timeout) {
     var link;
     link = function(scope, element, attrs) {
@@ -715,11 +758,10 @@
 }).call(this);
 
 (function() {
-  'use strict';
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module('BB.Models').factory("Member.PrepaidBookingModel", function($q, BBModel, BaseModel) {
+  angular.module('BB.Models').factory("Member.PrePaidBookingModel", function($q, BBModel, BaseModel) {
     var Member_PrePaidBooking;
     return Member_PrePaidBooking = (function(superClass) {
       extend(Member_PrePaidBooking, superClass);
@@ -922,7 +964,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BB.Services').factory("MemberPrePaidBookingService", function($q, $window, SpaceCollections, $rootScope, MemberService) {
+  angular.module('BB.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
     return {
       query: function(member, params) {
         var deferred;
@@ -933,7 +975,7 @@
           member.$get('pre_paid_bookings', params).then((function(_this) {
             return function(bookings) {
               var booking;
-              if ($window.typeIsArray(bookings)) {
+              if (angular.isArray(bookings)) {
                 bookings = (function() {
                   var i, len, results;
                   results = [];
