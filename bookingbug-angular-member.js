@@ -143,6 +143,231 @@
 }).call(this);
 
 (function() {
+  angular.module('BB.Services').factory("MemberBookingService", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
+    return {
+      query: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        if (!member.$has('bookings')) {
+          deferred.reject("member does not have bookings");
+        } else {
+          member.$get('bookings', params).then((function(_this) {
+            return function(bookings) {
+              var booking;
+              if (angular.isArray(bookings)) {
+                bookings = (function() {
+                  var i, len, results;
+                  results = [];
+                  for (i = 0, len = bookings.length; i < len; i++) {
+                    booking = bookings[i];
+                    results.push(new BBModel.Member.Booking(booking));
+                  }
+                  return results;
+                })();
+                return deferred.resolve(bookings);
+              } else {
+                return bookings.$get('bookings', params).then(function(bookings) {
+                  bookings = (function() {
+                    var i, len, results;
+                    results = [];
+                    for (i = 0, len = bookings.length; i < len; i++) {
+                      booking = bookings[i];
+                      results.push(new BBModel.Member.Booking(booking));
+                    }
+                    return results;
+                  })();
+                  return deferred.resolve(bookings);
+                }, function(err) {
+                  return deferred.reject(err);
+                });
+              }
+            };
+          })(this), function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
+      },
+      cancel: function(member, booking) {
+        var deferred;
+        deferred = $q.defer();
+        booking.$del('self').then((function(_this) {
+          return function(b) {
+            booking.deleted = true;
+            b = new BBModel.Member.Booking(b);
+            MemberService.refresh(member).then(function(member) {
+              return member = member;
+            }, function(err) {});
+            return deferred.resolve(b);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      },
+      update: function(booking) {
+        var deferred;
+        deferred = $q.defer();
+        $rootScope.member.flushBookings();
+        booking.$put('self', {}, booking).then((function(_this) {
+          return function(booking) {
+            var book;
+            book = new BBModel.Member.Booking(booking);
+            SpaceCollections.checkItems(book);
+            return deferred.resolve(book);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            _.each(booking, function(value, key, booking) {
+              if (key !== 'data' && key !== 'self') {
+                return booking[key] = booking.data[key];
+              }
+            });
+            return deferred.reject(err, new BBModel.Member.Booking(booking));
+          };
+        })(this));
+        return deferred.promise;
+      },
+      flush: function(member, params) {
+        if (member.$has('bookings')) {
+          return member.$flush('bookings', params);
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel) {
+    return {
+      login: function(form, options) {
+        var defer, url;
+        defer = $q.defer();
+        url = $rootScope.bb.api_url + "/api/v1/login";
+        if (options.company_id != null) {
+          url = url + "/member/" + options.company_id;
+        }
+        halClient.$post(url, options, form).then(function(login) {
+          if (login.$has('member')) {
+            return login.$get('member').then(function(member) {
+              member = new BBModel.Member.Member(member);
+              return defer.resolve(member);
+            });
+          } else if (login.$has('members')) {
+            return defer.resolve(login);
+          } else {
+            return defer.reject("No member account for login");
+          }
+        }, (function(_this) {
+          return function(err) {
+            var login;
+            if (err.status === 400) {
+              login = halClient.$parse(err.data);
+              if (login.$has('members')) {
+                return defer.resolve(login);
+              } else {
+                return defer.reject(err);
+              }
+            } else {
+              return defer.reject(err);
+            }
+          };
+        })(this));
+        return defer.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BB.Services').factory("MemberService", function($q, halClient, $rootScope, BBModel) {
+    return {
+      refresh: function(member) {
+        var deferred;
+        deferred = $q.defer();
+        member.$flush('self');
+        member.$get('self').then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      },
+      current: function() {
+        var callback, deferred;
+        deferred = $q.defer();
+        callback = function() {
+          return deferred.resolve($rootScope.member);
+        };
+        setTimeout(callback, 200);
+        return deferred.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BB.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
+    return {
+      query: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        if (!member.$has('pre_paid_bookings')) {
+          deferred.reject("member does not have pre paid bookings");
+        } else {
+          member.$get('pre_paid_bookings', params).then((function(_this) {
+            return function(bookings) {
+              var booking;
+              if (angular.isArray(bookings)) {
+                bookings = (function() {
+                  var i, len, results;
+                  results = [];
+                  for (i = 0, len = bookings.length; i < len; i++) {
+                    booking = bookings[i];
+                    results.push(new BBModel.Member.PrePaidBooking(booking));
+                  }
+                  return results;
+                })();
+                return deferred.resolve(bookings);
+              } else {
+                return bookings.$get('pre_paid_bookings', params).then(function(bookings) {
+                  bookings = (function() {
+                    var i, len, results;
+                    results = [];
+                    for (i = 0, len = bookings.length; i < len; i++) {
+                      booking = bookings[i];
+                      results.push(new BBModel.Member.PrePaidBooking(booking));
+                    }
+                    return results;
+                  })();
+                  return deferred.resolve(bookings);
+                });
+              }
+            };
+          })(this), (function(_this) {
+            return function(err) {
+              return deferred.reject(err);
+            };
+          })(this));
+        }
+        return deferred.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
   angular.module('BBMember').directive('memberBookings', function($rootScope) {
     var link;
     link = function(scope, element, attrs) {
@@ -785,231 +1010,6 @@
       return Member_PrePaidBooking;
 
     })(BaseModel);
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BB.Services').factory("MemberBookingService", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
-    return {
-      query: function(member, params) {
-        var deferred;
-        deferred = $q.defer();
-        if (!member.$has('bookings')) {
-          deferred.reject("member does not have bookings");
-        } else {
-          member.$get('bookings', params).then((function(_this) {
-            return function(bookings) {
-              var booking;
-              if (angular.isArray(bookings)) {
-                bookings = (function() {
-                  var i, len, results;
-                  results = [];
-                  for (i = 0, len = bookings.length; i < len; i++) {
-                    booking = bookings[i];
-                    results.push(new BBModel.Member.Booking(booking));
-                  }
-                  return results;
-                })();
-                return deferred.resolve(bookings);
-              } else {
-                return bookings.$get('bookings', params).then(function(bookings) {
-                  bookings = (function() {
-                    var i, len, results;
-                    results = [];
-                    for (i = 0, len = bookings.length; i < len; i++) {
-                      booking = bookings[i];
-                      results.push(new BBModel.Member.Booking(booking));
-                    }
-                    return results;
-                  })();
-                  return deferred.resolve(bookings);
-                }, function(err) {
-                  return deferred.reject(err);
-                });
-              }
-            };
-          })(this), function(err) {
-            return deferred.reject(err);
-          });
-        }
-        return deferred.promise;
-      },
-      cancel: function(member, booking) {
-        var deferred;
-        deferred = $q.defer();
-        booking.$del('self').then((function(_this) {
-          return function(b) {
-            booking.deleted = true;
-            b = new BBModel.Member.Booking(b);
-            MemberService.refresh(member).then(function(member) {
-              return member = member;
-            }, function(err) {});
-            return deferred.resolve(b);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            return deferred.reject(err);
-          };
-        })(this));
-        return deferred.promise;
-      },
-      update: function(booking) {
-        var deferred;
-        deferred = $q.defer();
-        $rootScope.member.flushBookings();
-        booking.$put('self', {}, booking).then((function(_this) {
-          return function(booking) {
-            var book;
-            book = new BBModel.Member.Booking(booking);
-            SpaceCollections.checkItems(book);
-            return deferred.resolve(book);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            _.each(booking, function(value, key, booking) {
-              if (key !== 'data' && key !== 'self') {
-                return booking[key] = booking.data[key];
-              }
-            });
-            return deferred.reject(err, new BBModel.Member.Booking(booking));
-          };
-        })(this));
-        return deferred.promise;
-      },
-      flush: function(member, params) {
-        if (member.$has('bookings')) {
-          return member.$flush('bookings', params);
-        }
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel) {
-    return {
-      login: function(form, options) {
-        var defer, url;
-        defer = $q.defer();
-        url = $rootScope.bb.api_url + "/api/v1/login";
-        if (options.company_id != null) {
-          url = url + "/member/" + options.company_id;
-        }
-        halClient.$post(url, options, form).then(function(login) {
-          if (login.$has('member')) {
-            return login.$get('member').then(function(member) {
-              member = new BBModel.Member.Member(member);
-              return defer.resolve(member);
-            });
-          } else if (login.$has('members')) {
-            return defer.resolve(login);
-          } else {
-            return defer.reject("No member account for login");
-          }
-        }, (function(_this) {
-          return function(err) {
-            var login;
-            if (err.status === 400) {
-              login = halClient.$parse(err.data);
-              if (login.$has('members')) {
-                return defer.resolve(login);
-              } else {
-                return defer.reject(err);
-              }
-            } else {
-              return defer.reject(err);
-            }
-          };
-        })(this));
-        return defer.promise;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BB.Services').factory("MemberService", function($q, halClient, $rootScope, BBModel) {
-    return {
-      refresh: function(member) {
-        var deferred;
-        deferred = $q.defer();
-        member.$flush('self');
-        member.$get('self').then((function(_this) {
-          return function(member) {
-            member = new BBModel.Member.Member(member);
-            return deferred.resolve(member);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            return deferred.reject(err);
-          };
-        })(this));
-        return deferred.promise;
-      },
-      current: function() {
-        var callback, deferred;
-        deferred = $q.defer();
-        callback = function() {
-          return deferred.resolve($rootScope.member);
-        };
-        setTimeout(callback, 200);
-        return deferred.promise;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BB.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
-    return {
-      query: function(member, params) {
-        var deferred;
-        deferred = $q.defer();
-        if (!member.$has('pre_paid_bookings')) {
-          deferred.reject("member does not have pre paid bookings");
-        } else {
-          member.$get('pre_paid_bookings', params).then((function(_this) {
-            return function(bookings) {
-              var booking;
-              if (angular.isArray(bookings)) {
-                bookings = (function() {
-                  var i, len, results;
-                  results = [];
-                  for (i = 0, len = bookings.length; i < len; i++) {
-                    booking = bookings[i];
-                    results.push(new BBModel.Member.PrePaidBooking(booking));
-                  }
-                  return results;
-                })();
-                return deferred.resolve(bookings);
-              } else {
-                return bookings.$get('pre_paid_bookings', params).then(function(bookings) {
-                  bookings = (function() {
-                    var i, len, results;
-                    results = [];
-                    for (i = 0, len = bookings.length; i < len; i++) {
-                      booking = bookings[i];
-                      results.push(new BBModel.Member.PrePaidBooking(booking));
-                    }
-                    return results;
-                  })();
-                  return deferred.resolve(bookings);
-                });
-              }
-            };
-          })(this), (function(_this) {
-            return function(err) {
-              return deferred.reject(err);
-            };
-          })(this));
-        }
-        return deferred.promise;
-      }
-    };
   });
 
 }).call(this);
