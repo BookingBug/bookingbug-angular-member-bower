@@ -58,10 +58,10 @@
     };
     $scope.edit = function(booking) {
       return booking.getAnswersPromise().then(function(answers) {
-        var answer, i, len, ref;
-        ref = answers.answers;
-        for (i = 0, len = ref.length; i < len; i++) {
-          answer = ref[i];
+        var answer, _i, _len, _ref;
+        _ref = answers.answers;
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          answer = _ref[_i];
           booking["question" + answer.question_id] = answer.value;
         }
         return ModalForm.edit({
@@ -146,10 +146,10 @@
   angular.module('BBMember').directive('memberBookings', function($rootScope) {
     var link;
     link = function(scope, element, attrs) {
-      var base, base1;
+      var _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = scope.apiUrl);
+      return (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
     };
     return {
       link: link,
@@ -181,10 +181,10 @@
           return b.id === id;
         });
         return booking.getAnswersPromise().then(function(answers) {
-          var answer, i, len, ref;
-          ref = answers.answers;
-          for (i = 0, len = ref.length; i < len; i++) {
-            answer = ref[i];
+          var answer, _i, _len, _ref;
+          _ref = answers.answers;
+          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+            answer = _ref[_i];
             booking["question" + answer.question_id] = answer.value;
           }
           return ModalForm.edit({
@@ -212,10 +212,10 @@
       };
     };
     link = function(scope, element, attrs) {
-      var base, base1;
+      var _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = scope.apiUrl);
+      return (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
     };
     return {
       link: link,
@@ -257,10 +257,10 @@
       };
     };
     link = function(scope, element, attrs) {
-      var base, base1;
+      var _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = attrs.apiUrl);
-      return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = attrs.apiUrl);
+      return (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
     };
     return {
       link: link,
@@ -332,29 +332,29 @@
         }
       };
       $scope.schema.properties.company_id["enum"] = (function() {
-        var i, len, results;
-        results = [];
-        for (i = 0, len = companies.length; i < len; i++) {
-          c = companies[i];
-          results.push(c.id);
+        var _i, _len, _results;
+        _results = [];
+        for (_i = 0, _len = companies.length; _i < _len; _i++) {
+          c = companies[_i];
+          _results.push(c.id);
         }
-        return results;
+        return _results;
       })();
       $scope.form = [
         {
           key: 'company_id',
           type: 'select',
           titleMap: (function() {
-            var i, len, results;
-            results = [];
-            for (i = 0, len = companies.length; i < len; i++) {
-              c = companies[i];
-              results.push({
+            var _i, _len, _results;
+            _results = [];
+            for (_i = 0, _len = companies.length; _i < _len; _i++) {
+              c = companies[_i];
+              _results.push({
                 value: c.id,
                 name: c.name
               });
             }
-            return results;
+            return _results;
           })(),
           autofocus: true
         }
@@ -368,10 +368,10 @@
       };
     };
     link = function(scope, element, attrs) {
-      var base, base1, loginModal, pickCompanyModal, tryLogin;
+      var loginModal, pickCompanyModal, tryLogin, _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = scope.apiUrl);
+      (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
       loginModal = function() {
         var modalInstance;
         modalInstance = $modal.open({
@@ -391,13 +391,13 @@
               var m;
               scope.members = members;
               return $q.all((function() {
-                var i, len, results;
-                results = [];
-                for (i = 0, len = members.length; i < len; i++) {
-                  m = members[i];
-                  results.push(m.$get('company'));
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = members.length; _i < _len; _i++) {
+                  m = members[_i];
+                  _results.push(m.$get('company'));
                 }
-                return results;
+                return _results;
               })()).then(function(companies) {
                 return pickCompanyModal(companies);
               });
@@ -442,13 +442,13 @@
               var m;
               scope.members = members;
               return $q.all((function() {
-                var i, len, results;
-                results = [];
-                for (i = 0, len = members.length; i < len; i++) {
-                  m = members[i];
-                  results.push(m.$get('company'));
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = members.length; _i < _len; _i++) {
+                  m = members[_i];
+                  _results.push(m.$get('company'));
                 }
-                return results;
+                return _results;
               })()).then(function(companies) {
                 return pickCompanyModal(companies);
               });
@@ -486,10 +486,10 @@
   angular.module('BBMember').directive('bbMemberPastBookings', function($rootScope) {
     var link;
     link = function(scope, element, attrs) {
-      var base, base1, getBookings;
+      var getBookings, _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = scope.apiUrl);
+      (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
       getBookings = function() {
         return scope.getPastBookings();
       };
@@ -512,10 +512,10 @@
   angular.module('BBMember').directive('bbMemberPrePaidBookings', function($rootScope) {
     var link;
     link = function(scope, element, attrs) {
-      var base, base1, getBookings;
+      var getBookings, _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = scope.apiUrl);
+      (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
       scope.loading = true;
       getBookings = function() {
         return scope.getPrePaidBookings({})["finally"](function() {
@@ -541,10 +541,10 @@
   angular.module('BBMember').directive('memberSsoLogin', function($rootScope, LoginService, $sniffer, $timeout) {
     var link;
     link = function(scope, element, attrs) {
-      var base, base1, data, options;
+      var data, options, _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = scope.apiUrl);
+      (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
       scope.member = null;
       options = {
         root: $rootScope.bb.api_url,
@@ -584,10 +584,10 @@
   angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope) {
     var link;
     link = function(scope, element, attrs) {
-      var base, base1, getBookings;
+      var getBookings, _base, _base1;
       $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      (_base = $rootScope.bb).api_url || (_base.api_url = scope.apiUrl);
+      (_base1 = $rootScope.bb).api_url || (_base1.api_url = "http://www.bookingbug.com");
       getBookings = function() {
         return scope.getUpcomingBookings();
       };
@@ -612,17 +612,17 @@
 
 (function() {
   'use strict';
-  var bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
+  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __hasProp = {}.hasOwnProperty;
 
   angular.module('BB.Models').factory("Member.BookingModel", function($q, $window, BBModel, BaseModel, $bbug) {
     var Member_Booking;
-    return Member_Booking = (function(superClass) {
-      extend(Member_Booking, superClass);
+    return Member_Booking = (function(_super) {
+      __extends(Member_Booking, _super);
 
       function Member_Booking(data) {
-        this.getMemberPromise = bind(this.getMemberPromise, this);
+        this.getMemberPromise = __bind(this.getMemberPromise, this);
         Member_Booking.__super__.constructor.call(this, data);
         this.datetime = moment.parseZone(this.datetime);
         if (this.time_zone) {
@@ -681,13 +681,13 @@
             return function(answers) {
               var a;
               _this.answers = (function() {
-                var i, len, results;
-                results = [];
-                for (i = 0, len = answers.length; i < len; i++) {
-                  a = answers[i];
-                  results.push(new BBModel.Answer(a));
+                var _i, _len, _results;
+                _results = [];
+                for (_i = 0, _len = answers.length; _i < _len; _i++) {
+                  a = answers[_i];
+                  _results.push(new BBModel.Answer(a));
                 }
-                return results;
+                return _results;
               })();
               return defer.resolve(_this.answers);
             };
@@ -738,13 +738,13 @@
 }).call(this);
 
 (function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
+  var __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __hasProp = {}.hasOwnProperty;
 
   angular.module('BB.Models').factory("Member.MemberModel", function($q, BBModel, BaseModel, ClientModel) {
     var Member_Member;
-    return Member_Member = (function(superClass) {
-      extend(Member_Member, superClass);
+    return Member_Member = (function(_super) {
+      __extends(Member_Member, _super);
 
       function Member_Member() {
         return Member_Member.__super__.constructor.apply(this, arguments);
@@ -758,13 +758,13 @@
 }).call(this);
 
 (function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
+  var __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __hasProp = {}.hasOwnProperty;
 
   angular.module('BB.Models').factory("Member.PrePaidBookingModel", function($q, BBModel, BaseModel) {
     var Member_PrePaidBooking;
-    return Member_PrePaidBooking = (function(superClass) {
-      extend(Member_PrePaidBooking, superClass);
+    return Member_PrePaidBooking = (function(_super) {
+      __extends(Member_PrePaidBooking, _super);
 
       function Member_PrePaidBooking(data) {
         Member_PrePaidBooking.__super__.constructor.call(this, data);
@@ -803,25 +803,25 @@
               var booking;
               if (angular.isArray(bookings)) {
                 bookings = (function() {
-                  var i, len, results;
-                  results = [];
-                  for (i = 0, len = bookings.length; i < len; i++) {
-                    booking = bookings[i];
-                    results.push(new BBModel.Member.Booking(booking));
+                  var _i, _len, _results;
+                  _results = [];
+                  for (_i = 0, _len = bookings.length; _i < _len; _i++) {
+                    booking = bookings[_i];
+                    _results.push(new BBModel.Member.Booking(booking));
                   }
-                  return results;
+                  return _results;
                 })();
                 return deferred.resolve(bookings);
               } else {
                 return bookings.$get('bookings', params).then(function(bookings) {
                   bookings = (function() {
-                    var i, len, results;
-                    results = [];
-                    for (i = 0, len = bookings.length; i < len; i++) {
-                      booking = bookings[i];
-                      results.push(new BBModel.Member.Booking(booking));
+                    var _i, _len, _results;
+                    _results = [];
+                    for (_i = 0, _len = bookings.length; _i < _len; _i++) {
+                      booking = bookings[_i];
+                      _results.push(new BBModel.Member.Booking(booking));
                     }
-                    return results;
+                    return _results;
                   })();
                   return deferred.resolve(bookings);
                 }, function(err) {
@@ -977,25 +977,25 @@
               var booking;
               if (angular.isArray(bookings)) {
                 bookings = (function() {
-                  var i, len, results;
-                  results = [];
-                  for (i = 0, len = bookings.length; i < len; i++) {
-                    booking = bookings[i];
-                    results.push(new BBModel.Member.PrePaidBooking(booking));
+                  var _i, _len, _results;
+                  _results = [];
+                  for (_i = 0, _len = bookings.length; _i < _len; _i++) {
+                    booking = bookings[_i];
+                    _results.push(new BBModel.Member.PrePaidBooking(booking));
                   }
-                  return results;
+                  return _results;
                 })();
                 return deferred.resolve(bookings);
               } else {
                 return bookings.$get('pre_paid_bookings', params).then(function(bookings) {
                   bookings = (function() {
-                    var i, len, results;
-                    results = [];
-                    for (i = 0, len = bookings.length; i < len; i++) {
-                      booking = bookings[i];
-                      results.push(new BBModel.Member.PrePaidBooking(booking));
+                    var _i, _len, _results;
+                    _results = [];
+                    for (_i = 0, _len = bookings.length; _i < _len; _i++) {
+                      booking = bookings[_i];
+                      _results.push(new BBModel.Member.PrePaidBooking(booking));
                     }
-                    return results;
+                    return _results;
                   })();
                   return deferred.resolve(bookings);
                 });
