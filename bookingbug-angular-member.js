@@ -427,7 +427,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('loginMember', function($modal, $log, $rootScope, MemberLoginService, $templateCache, $q) {
+  angular.module('BBMember').directive('loginMember', function($modal, $log, $rootScope, MemberLoginService, $templateCache, $q, $sessionStorage, halClient) {
     var link, loginMemberController, pickCompanyController;
     loginMemberController = function($scope, $modalInstance, company_id) {
       $scope.title = 'Login';
@@ -523,7 +523,7 @@
       };
     };
     link = function(scope, element, attrs) {
-      var base, base1, loginModal, pickCompanyModal, tryLogin;
+      var base, base1, loginModal, pickCompanyModal, session_member, tryLogin;
       $rootScope.bb || ($rootScope.bb = {});
       (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
       (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
@@ -617,6 +617,10 @@
       };
       if (scope.memberEmail && scope.memberPassword) {
         return tryLogin();
+      } else if ($sessionStorage.getItem("login")) {
+        session_member = $sessionStorage.getItem("login");
+        session_member = halClient.createResource(session_member);
+        return scope.member = session_member;
       } else {
         return loginModal();
       }
@@ -1287,7 +1291,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel) {
+  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel, $sessionStorage) {
     return {
       login: function(form, options) {
         var defer, url;
@@ -1299,7 +1303,11 @@
         halClient.$post(url, options, form).then(function(login) {
           if (login.$has('member')) {
             return login.$get('member').then(function(member) {
+              var auth_token;
               member = new BBModel.Member.Member(member);
+              auth_token = member.getOption('auth_token');
+              $sessionStorage.setItem("login", member.$toStore());
+              $sessionStorage.setItem("auth_token", auth_token);
               return defer.resolve(member);
             });
           } else if (login.$has('members')) {
