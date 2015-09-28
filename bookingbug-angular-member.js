@@ -1378,6 +1378,21 @@
         };
         setTimeout(callback, 200);
         return deferred.promise;
+      },
+      updateMember: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        member.$put('self', {}, params).then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
       }
     };
   });
