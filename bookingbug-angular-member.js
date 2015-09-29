@@ -143,7 +143,7 @@
 }).call(this);
 
 (function() {
-  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope) {
+  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope, AlertService, ErrorService) {
     if ($scope.member) {
       $scope.company_id = $scope.member.company_id;
     }
@@ -173,7 +173,7 @@
         return $scope.wallet;
       }, function(err) {
         $scope.setLoaded($scope);
-        return $log.error(err.data);
+        return $log.error(err);
       });
     };
     $scope.getWalletLogs = function(wallet) {
@@ -291,7 +291,8 @@
     $scope.error = function(message) {
       $scope.error_message = "Payment Failure: " + message;
       $log.warn("Payment Failure: " + message);
-      return $scope.$emit("wallet_payment:error", $scope.error_message);
+      $scope.$emit("wallet_payment:error", $scope.error_message);
+      return AlertService.warning(ErrorService.getAlert('TOPUP_FAILED'));
     };
     $scope.add = function(value) {
       value = value || $scope.amount_increment;
@@ -669,6 +670,11 @@
       getBookings = function() {
         return scope.getPastBookings();
       };
+      scope.$watch('member', function() {
+        if (!scope.past_bookings) {
+          return scope.getBookings();
+        }
+      });
       return getBookings();
     };
     return {
@@ -770,6 +776,11 @@
       scope.$on('updateBookings', function() {
         scope.flushBookings();
         return getBookings();
+      });
+      scope.$watch('member', function() {
+        if (!scope.upcoming_bookings) {
+          return scope.getBookings();
+        }
       });
       return getBookings();
     };
@@ -969,8 +980,7 @@
                   case "error":
                     scope.callSetLoaded();
                     scope.error(data.message);
-                    scope.show_payment_iframe = false;
-                    return AlertService.warning(ErrorService.getAlert('TOPUP_FAILED'));
+                    return scope.show_payment_iframe = false;
                   case "wallet_payment_complete":
                     return scope.walletPaymentDone();
                   case 'basket_wallet_payment_complete':
@@ -1383,6 +1393,22 @@
         var deferred;
         deferred = $q.defer();
         member.$put('self', {}, params).then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      },
+      sendWelcomeEmail: function(member, params) {
+        debugger;
+        var deferred;
+        deferred = $q.defer();
+        member.$post('send_welcome_email', params).then((function(_this) {
           return function(member) {
             member = new BBModel.Member.Member(member);
             return deferred.resolve(member);
