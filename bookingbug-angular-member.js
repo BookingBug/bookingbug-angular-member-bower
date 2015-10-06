@@ -420,14 +420,18 @@
     return {
       link: link,
       controller: controller,
-      template: "<form sf-schema=\"schema\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(member)\" ng-hide=\"loading\"></form>"
+      template: "<form sf-schema=\"schema\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(member)\" ng-hide=\"loading\"></form>",
+      scope: {
+        apiUrl: '@',
+        member: '='
+      }
     };
   });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('loginMember', function($modal, $log, $rootScope, MemberLoginService, $templateCache, $q) {
+  angular.module('BBMember').directive('loginMember', function($modal, $log, $rootScope, MemberLoginService, $templateCache, $q, $sessionStorage, halClient) {
     var link, loginMemberController, pickCompanyController;
     loginMemberController = function($scope, $modalInstance, company_id) {
       $scope.title = 'Login';
@@ -639,24 +643,27 @@
 
 (function() {
   angular.module('BBMember').directive('bbMemberPastBookings', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getBookings;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      getBookings = function() {
-        return scope.getPastBookings();
-      };
-      return getBookings();
-    };
     return {
-      link: link,
-      controller: 'MemberBookings',
       templateUrl: 'member_past_bookings.html',
       scope: {
         apiUrl: '@',
         member: '='
+      },
+      controller: 'MemberBookings',
+      link: function(scope, element, attrs) {
+        var base, base1, getBookings;
+        $rootScope.bb || ($rootScope.bb = {});
+        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
+        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        getBookings = function() {
+          return scope.getPastBookings();
+        };
+        scope.$watch('member', function() {
+          if (!scope.past_bookings) {
+            return scope.getBookings();
+          }
+        });
+        return getBookings();
       }
     };
   });
@@ -737,28 +744,31 @@
 
 (function() {
   angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getBookings;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      getBookings = function() {
-        return scope.getUpcomingBookings();
-      };
-      scope.$on('updateBookings', function() {
-        scope.flushBookings();
-        return getBookings();
-      });
-      return getBookings();
-    };
     return {
-      link: link,
-      controller: 'MemberBookings',
       templateUrl: 'member_upcoming_bookings.html',
       scope: {
         apiUrl: '@',
         member: '='
+      },
+      controller: 'MemberBookings',
+      link: function(scope, element, attrs) {
+        var base, base1, getBookings;
+        $rootScope.bb || ($rootScope.bb = {});
+        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
+        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        getBookings = function() {
+          return scope.getUpcomingBookings();
+        };
+        scope.$on('updateBookings', function() {
+          scope.flushBookings();
+          return getBookings();
+        });
+        scope.$watch('member', function() {
+          if (!scope.upcoming_bookings) {
+            return scope.getBookings();
+          }
+        });
+        return getBookings();
       }
     };
   });
@@ -1287,7 +1297,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel) {
+  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel, $sessionStorage) {
     return {
       login: function(form, options) {
         var defer, url;
@@ -1299,7 +1309,11 @@
         halClient.$post(url, options, form).then(function(login) {
           if (login.$has('member')) {
             return login.$get('member').then(function(member) {
+              var auth_token;
               member = new BBModel.Member.Member(member);
+              auth_token = member.getOption('auth_token');
+              $sessionStorage.setItem("login", member.$toStore());
+              $sessionStorage.setItem("auth_token", auth_token);
               return defer.resolve(member);
             });
           } else if (login.$has('members')) {
