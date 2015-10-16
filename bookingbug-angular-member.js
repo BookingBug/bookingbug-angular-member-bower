@@ -432,6 +432,7 @@
         });
         return $scope.submit = function(form) {
           $scope.loading = true;
+          debugger;
           return $scope.member.$put('self', {}, form).then(function(member) {
             $scope.loading = false;
             return AlertService.raise(ErrorService.getAlert('UPDATE_SUCCESS'));
