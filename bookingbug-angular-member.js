@@ -28,13 +28,14 @@
 
 (function() {
   angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService) {
+    var getBookings;
     $scope.loading = true;
     $scope.getUpcomingBookings = function() {
       var params;
       params = {
         start_date: moment().format('YYYY-MM-DD')
       };
-      return $scope.getBookings(params).then(function(bookings) {
+      return getBookings(params).then(function(bookings) {
         return $scope.upcoming_bookings = bookings;
       });
     };
@@ -49,7 +50,7 @@
         start_date: date.format('YYYY-MM-DD'),
         end_date: moment().format('YYYY-MM-DD')
       };
-      return $scope.getBookings(params).then(function(bookings) {
+      return getBookings(params).then(function(bookings) {
         return $scope.past_bookings = _.chain(bookings).filter(function(b) {
           return b.datetime.isBefore(moment());
         }).sortBy(function(b) {
@@ -105,7 +106,7 @@
         return $scope.cancelBooking(booking);
       });
     };
-    $scope.getBookings = function(params) {
+    getBookings = function(params) {
       var defer;
       $scope.loading = true;
       defer = $q.defer();
@@ -121,11 +122,18 @@
     $scope.cancelBooking = function(booking) {
       $scope.loading = true;
       return MemberBookingService.cancel($scope.member, booking).then(function() {
+        var removeBooking;
         $scope.$emit("cancel:success");
-        if ($scope.bookings) {
-          $scope.bookings = $scope.bookings.filter(function(b) {
+        removeBooking = function(booking, bookings) {
+          return bookings.filter(function(b) {
             return b.id !== booking.id;
           });
+        };
+        if ($scope.past_bookings) {
+          $scope.past_bookings = removeBooking(booking, $scope.past_bookings);
+        }
+        if ($scope.upcoming_bookings) {
+          $scope.upcoming_bookings = removeBooking(booking, $scope.upcoming_bookings);
         }
         if ($scope.removeBooking) {
           $scope.removeBooking(booking);
@@ -722,10 +730,12 @@
         };
         scope.$watch('member', function() {
           if (!scope.pre_paid_bookings) {
-            return scope.getBookings();
+            return getBookings();
           }
         });
-        return getBookings();
+        return $rootScope.connection_started.then(function() {
+          return getBookings();
+        });
       }
     };
   });
