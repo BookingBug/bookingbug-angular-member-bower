@@ -28,25 +28,34 @@
 
 (function() {
   angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService) {
+    var getBookings;
     $scope.loading = true;
     $scope.getUpcomingBookings = function() {
       var params;
       params = {
         start_date: moment().format('YYYY-MM-DD')
       };
-      return $scope.getBookings(params).then(function(bookings) {
+      return getBookings(params).then(function(bookings) {
         return $scope.upcoming_bookings = bookings;
       });
     };
     $scope.getPastBookings = function(num, type) {
       var date, params;
-      date = moment().subtract(num, type);
+      if (num && type) {
+        date = moment().subtract(num, type);
+      } else {
+        date = moment().subtract(1, 'year');
+      }
       params = {
         start_date: date.format('YYYY-MM-DD'),
         end_date: moment().format('YYYY-MM-DD')
       };
-      return $scope.getBookings(params).then(function(bookings) {
-        return $scope.past_bookings = bookings;
+      return getBookings(params).then(function(bookings) {
+        return $scope.past_bookings = _.chain(bookings).filter(function(b) {
+          return b.datetime.isBefore(moment());
+        }).sortBy(function(b) {
+          return -b.datetime.unix();
+        }).value();
       });
     };
     $scope.flushBookings = function() {
@@ -97,7 +106,7 @@
         return $scope.cancelBooking(booking);
       });
     };
-    $scope.getBookings = function(params) {
+    getBookings = function(params) {
       var defer;
       $scope.loading = true;
       defer = $q.defer();
@@ -113,10 +122,18 @@
     $scope.cancelBooking = function(booking) {
       $scope.loading = true;
       return MemberBookingService.cancel($scope.member, booking).then(function() {
-        if ($scope.bookings) {
-          $scope.bookings = $scope.bookings.filter(function(b) {
+        var removeBooking;
+        $scope.$emit("cancel:success");
+        removeBooking = function(booking, bookings) {
+          return bookings.filter(function(b) {
             return b.id !== booking.id;
           });
+        };
+        if ($scope.past_bookings) {
+          $scope.past_bookings = removeBooking(booking, $scope.past_bookings);
+        }
+        if ($scope.upcoming_bookings) {
+          $scope.upcoming_bookings = removeBooking(booking, $scope.upcoming_bookings);
         }
         if ($scope.removeBooking) {
           $scope.removeBooking(booking);
@@ -661,10 +678,12 @@
         };
         scope.$watch('member', function() {
           if (!scope.past_bookings) {
-            return scope.getBookings();
+            return getBookings();
           }
         });
-        return getBookings();
+        return $rootScope.connection_started.then(function() {
+          return getBookings;
+        });
       }
     };
   });
@@ -673,27 +692,32 @@
 
 (function() {
   angular.module('BBMember').directive('bbMemberPrePaidBookings', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getBookings;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      scope.loading = true;
-      getBookings = function() {
-        return scope.getPrePaidBookings({})["finally"](function() {
-          return scope.loading = false;
-        });
-      };
-      return getBookings();
-    };
     return {
-      link: link,
-      controller: 'MemberBookings',
       templateUrl: 'member_pre_paid_bookings.html',
       scope: {
         apiUrl: '@',
         member: '='
+      },
+      controller: 'MemberBookings',
+      link: function(scope, element, attrs) {
+        var base, base1, getBookings;
+        $rootScope.bb || ($rootScope.bb = {});
+        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
+        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        scope.loading = true;
+        getBookings = function() {
+          return scope.getPrePaidBookings({})["finally"](function() {
+            return scope.loading = false;
+          });
+        };
+        scope.$watch('member', function() {
+          if (!scope.pre_paid_bookings) {
+            return getBookings();
+          }
+        });
+        return $rootScope.connection_started.then(function() {
+          return getBookings();
+        });
       }
     };
   });
@@ -766,10 +790,12 @@
         });
         scope.$watch('member', function() {
           if (!scope.upcoming_bookings) {
-            return scope.getBookings();
+            return getBookings();
           }
         });
-        return getBookings();
+        return $rootScope.connection_started.then(function() {
+          return getBookings;
+        });
       }
     };
   });
