@@ -28,7 +28,7 @@
 
 (function() {
   angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService) {
-    var getBookings;
+    var getBookings, updateBookings;
     $scope.loading = true;
     $scope.getUpcomingBookings = function() {
       var params;
@@ -77,9 +77,13 @@
           model: booking,
           title: 'Booking Details',
           templateUrl: 'edit_booking_modal_form.html',
-          windowClass: 'member_edit_booking_form'
+          windowClass: 'member_edit_booking_form',
+          success: updateBookings
         });
       });
+    };
+    updateBookings = function() {
+      return $scope.getUpcomingBookings();
     };
     $scope.cancel = function(booking) {
       var modalInstance;
