@@ -28,25 +28,34 @@
 
 (function() {
   angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService) {
+    var getBookings, updateBookings;
     $scope.loading = true;
     $scope.getUpcomingBookings = function() {
       var params;
       params = {
         start_date: moment().format('YYYY-MM-DD')
       };
-      return $scope.getBookings(params).then(function(bookings) {
+      return getBookings(params).then(function(bookings) {
         return $scope.upcoming_bookings = bookings;
       });
     };
     $scope.getPastBookings = function(num, type) {
       var date, params;
-      date = moment().subtract(num, type);
+      if (num && type) {
+        date = moment().subtract(num, type);
+      } else {
+        date = moment().subtract(1, 'year');
+      }
       params = {
         start_date: date.format('YYYY-MM-DD'),
         end_date: moment().format('YYYY-MM-DD')
       };
-      return $scope.getBookings(params).then(function(bookings) {
-        return $scope.past_bookings = bookings;
+      return getBookings(params).then(function(bookings) {
+        return $scope.past_bookings = _.chain(bookings).filter(function(b) {
+          return b.datetime.isBefore(moment());
+        }).sortBy(function(b) {
+          return -b.datetime.unix();
+        }).value();
       });
     };
     $scope.flushBookings = function() {
@@ -68,9 +77,13 @@
           model: booking,
           title: 'Booking Details',
           templateUrl: 'edit_booking_modal_form.html',
-          windowClass: 'member_edit_booking_form'
+          windowClass: 'member_edit_booking_form',
+          success: updateBookings
         });
       });
+    };
+    updateBookings = function() {
+      return $scope.getUpcomingBookings();
     };
     $scope.cancel = function(booking) {
       var modalInstance;
@@ -97,7 +110,7 @@
         return $scope.cancelBooking(booking);
       });
     };
-    $scope.getBookings = function(params) {
+    getBookings = function(params) {
       var defer;
       $scope.loading = true;
       defer = $q.defer();
@@ -113,10 +126,18 @@
     $scope.cancelBooking = function(booking) {
       $scope.loading = true;
       return MemberBookingService.cancel($scope.member, booking).then(function() {
-        if ($scope.bookings) {
-          $scope.bookings = $scope.bookings.filter(function(b) {
+        var removeBooking;
+        $scope.$emit("cancel:success");
+        removeBooking = function(booking, bookings) {
+          return bookings.filter(function(b) {
             return b.id !== booking.id;
           });
+        };
+        if ($scope.past_bookings) {
+          $scope.past_bookings = removeBooking(booking, $scope.past_bookings);
+        }
+        if ($scope.upcoming_bookings) {
+          $scope.upcoming_bookings = removeBooking(booking, $scope.upcoming_bookings);
         }
         if ($scope.removeBooking) {
           $scope.removeBooking(booking);
@@ -387,47 +408,48 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('memberForm', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService) {
-    var controller, link;
-    controller = function($scope) {
-      $scope.loading = true;
-      $scope.$watch('member', function(member) {
-        if (member != null) {
-          return member.$get('edit_member').then(function(member_schema) {
-            $scope.form = member_schema.form;
-            $scope.schema = member_schema.schema;
-            return $scope.loading = false;
-          });
-        }
-      });
-      return $scope.submit = function(form) {
-        $scope.loading = true;
-        return $scope.member.$put('self', {}, form).then(function(member) {
-          $log.info("Successfully updated member");
-          return $scope.loading = false;
-        }, function(err) {
-          $log.error("Failed to update member - " + err);
-          return $scope.loading = false;
-        });
-      };
-    };
-    link = function(scope, element, attrs) {
-      var base, base1;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = attrs.apiUrl);
-      return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-    };
+  angular.module('BBMember').directive('memberForm', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, AlertService, ErrorService) {
     return {
-      link: link,
-      controller: controller,
-      template: "<form sf-schema=\"schema\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(member)\" ng-hide=\"loading\"></form>"
+      template: "<form sf-schema=\"schema\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(member)\" ng-hide=\"loading\"></form>",
+      scope: {
+        apiUrl: '@',
+        member: '='
+      },
+      link: function(scope, element, attrs) {
+        var base, base1;
+        $rootScope.bb || ($rootScope.bb = {});
+        (base = $rootScope.bb).api_url || (base.api_url = attrs.apiUrl);
+        return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      },
+      controller: function($scope) {
+        $scope.loading = true;
+        $scope.$watch('member', function(member) {
+          if (member != null) {
+            return member.$get('edit_member').then(function(member_schema) {
+              $scope.form = member_schema.form;
+              $scope.schema = member_schema.schema;
+              return $scope.loading = false;
+            });
+          }
+        });
+        return $scope.submit = function(form) {
+          $scope.loading = true;
+          return $scope.member.$put('self', {}, form).then(function(member) {
+            $scope.loading = false;
+            return AlertService.raise(ErrorService.getAlert('UPDATE_SUCCESS'));
+          }, function(err) {
+            $scope.loading = false;
+            return AlertService.raise(ErrorService.getAlert('UPDATE_FAILED'));
+          });
+        };
+      }
     };
   });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('loginMember', function($modal, $log, $rootScope, MemberLoginService, $templateCache, $q) {
+  angular.module('BBMember').directive('loginMember', function($modal, $log, $rootScope, MemberLoginService, $templateCache, $q, $sessionStorage, halClient) {
     var link, loginMemberController, pickCompanyController;
     loginMemberController = function($scope, $modalInstance, company_id) {
       $scope.title = 'Login';
@@ -523,7 +545,7 @@
       };
     };
     link = function(scope, element, attrs) {
-      var base, base1, loginModal, pickCompanyModal, tryLogin;
+      var base, base1, loginModal, pickCompanyModal, session_member, tryLogin;
       $rootScope.bb || ($rootScope.bb = {});
       (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
       (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
@@ -617,6 +639,10 @@
       };
       if (scope.memberEmail && scope.memberPassword) {
         return tryLogin();
+      } else if ($sessionStorage.getItem("login")) {
+        session_member = $sessionStorage.getItem("login");
+        session_member = halClient.createResource(session_member);
+        return scope.member = session_member;
       } else {
         return loginModal();
       }
@@ -639,24 +665,29 @@
 
 (function() {
   angular.module('BBMember').directive('bbMemberPastBookings', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getBookings;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      getBookings = function() {
-        return scope.getPastBookings();
-      };
-      return getBookings();
-    };
     return {
-      link: link,
-      controller: 'MemberBookings',
       templateUrl: 'member_past_bookings.html',
       scope: {
         apiUrl: '@',
         member: '='
+      },
+      controller: 'MemberBookings',
+      link: function(scope, element, attrs) {
+        var base, base1, getBookings;
+        $rootScope.bb || ($rootScope.bb = {});
+        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
+        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        getBookings = function() {
+          return scope.getPastBookings();
+        };
+        scope.$watch('member', function() {
+          if (!scope.past_bookings) {
+            return getBookings();
+          }
+        });
+        return $rootScope.connection_started.then(function() {
+          return getBookings;
+        });
       }
     };
   });
@@ -665,27 +696,32 @@
 
 (function() {
   angular.module('BBMember').directive('bbMemberPrePaidBookings', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getBookings;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      scope.loading = true;
-      getBookings = function() {
-        return scope.getPrePaidBookings({})["finally"](function() {
-          return scope.loading = false;
-        });
-      };
-      return getBookings();
-    };
     return {
-      link: link,
-      controller: 'MemberBookings',
       templateUrl: 'member_pre_paid_bookings.html',
       scope: {
         apiUrl: '@',
         member: '='
+      },
+      controller: 'MemberBookings',
+      link: function(scope, element, attrs) {
+        var base, base1, getBookings;
+        $rootScope.bb || ($rootScope.bb = {});
+        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
+        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        scope.loading = true;
+        getBookings = function() {
+          return scope.getPrePaidBookings({})["finally"](function() {
+            return scope.loading = false;
+          });
+        };
+        scope.$watch('member', function() {
+          if (!scope.pre_paid_bookings) {
+            return getBookings();
+          }
+        });
+        return $rootScope.connection_started.then(function() {
+          return getBookings();
+        });
       }
     };
   });
@@ -737,28 +773,33 @@
 
 (function() {
   angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getBookings;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      getBookings = function() {
-        return scope.getUpcomingBookings();
-      };
-      scope.$on('updateBookings', function() {
-        scope.flushBookings();
-        return getBookings();
-      });
-      return getBookings();
-    };
     return {
-      link: link,
-      controller: 'MemberBookings',
       templateUrl: 'member_upcoming_bookings.html',
       scope: {
         apiUrl: '@',
         member: '='
+      },
+      controller: 'MemberBookings',
+      link: function(scope, element, attrs) {
+        var base, base1, getBookings;
+        $rootScope.bb || ($rootScope.bb = {});
+        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
+        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        getBookings = function() {
+          return scope.getUpcomingBookings();
+        };
+        scope.$on('updateBookings', function() {
+          scope.flushBookings();
+          return getBookings();
+        });
+        scope.$watch('member', function() {
+          if (!scope.upcoming_bookings) {
+            return getBookings();
+          }
+        });
+        return $rootScope.connection_started.then(function() {
+          return getBookings;
+        });
       }
     };
   });
@@ -1287,7 +1328,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel) {
+  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel, $sessionStorage) {
     return {
       login: function(form, options) {
         var defer, url;
@@ -1299,7 +1340,11 @@
         halClient.$post(url, options, form).then(function(login) {
           if (login.$has('member')) {
             return login.$get('member').then(function(member) {
+              var auth_token;
               member = new BBModel.Member.Member(member);
+              auth_token = member.getOption('auth_token');
+              $sessionStorage.setItem("login", member.$toStore());
+              $sessionStorage.setItem("auth_token", auth_token);
               return defer.resolve(member);
             });
           } else if (login.$has('members')) {
