@@ -164,7 +164,7 @@
 }).call(this);
 
 (function() {
-  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope, AlertService, ErrorService) {
+  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope, AlertService) {
     if ($scope.member) {
       $scope.company_id = $scope.member.company_id;
     }
@@ -313,7 +313,7 @@
       $scope.error_message = "Payment Failure: " + message;
       $log.warn("Payment Failure: " + message);
       $scope.$emit("wallet_payment:error", $scope.error_message);
-      return AlertService.warning(ErrorService.getAlert('TOPUP_FAILED'));
+      return AlertService.warning('TOPUP_FAILED');
     };
     $scope.add = function(value) {
       value = value || $scope.amount_increment;
@@ -913,7 +913,7 @@
 }).call(this);
 
 (function() {
-  angular.module("BB.Directives").directive("bbWalletPayment", function($sce, $rootScope, $window, $location, SettingsService, AlertService, ErrorService) {
+  angular.module("BB.Directives").directive("bbWalletPayment", function($sce, $rootScope, $window, $location, SettingsService, AlertService) {
     return {
       restrict: 'A',
       controller: 'Wallet',
@@ -1012,7 +1012,7 @@
                     return scope.callNotLoaded();
                   case "error":
                     scope.callNotLoaded();
-                    AlertService.raise(ErrorService.getAlert('PAYMENT_FAILED'));
+                    AlertService.raise('PAYMENT_FAILED');
                     return document.getElementsByTagName("iframe")[0].src += '';
                   case "wallet_payment_complete":
                     return scope.walletPaymentDone();
