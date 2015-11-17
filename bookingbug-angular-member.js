@@ -408,7 +408,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('memberForm', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, AlertService, ErrorService) {
+  angular.module('BBMember').directive('memberForm', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, AlertService) {
     return {
       template: "<form sf-schema=\"schema\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(member)\" ng-hide=\"loading\"></form>",
       scope: {
@@ -436,10 +436,10 @@
           $scope.loading = true;
           return $scope.member.$put('self', {}, form).then(function(member) {
             $scope.loading = false;
-            return AlertService.raise(ErrorService.getAlert('UPDATE_SUCCESS'));
+            return AlertService.raise('UPDATE_SUCCESS');
           }, function(err) {
             $scope.loading = false;
-            return AlertService.raise(ErrorService.getAlert('UPDATE_FAILED'));
+            return AlertService.raise('UPDATE_FAILED');
           });
         };
       }
