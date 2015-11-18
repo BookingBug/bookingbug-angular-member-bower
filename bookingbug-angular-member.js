@@ -307,6 +307,7 @@
       });
     };
     $scope.basketWalletPaymentDone = function() {
+      scope.callSetLoaded();
       return $scope.decideNextPage('checkout');
     };
     $scope.error = function(message) {
@@ -1017,7 +1018,6 @@
                   case "wallet_payment_complete":
                     return scope.walletPaymentDone();
                   case 'basket_wallet_payment_complete':
-                    scope.callSetLoaded();
                     return scope.basketWalletPaymentDone();
                 }
               }
