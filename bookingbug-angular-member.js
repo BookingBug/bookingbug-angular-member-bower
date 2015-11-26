@@ -1309,6 +1309,8 @@
 
       function Member_WalletLog(data) {
         Member_WalletLog.__super__.constructor.call(this, data);
+        this.created_at = moment(this.created_at);
+        this.payment_amount = parseFloat(this.amount) * 100;
       }
 
       return Member_WalletLog;
