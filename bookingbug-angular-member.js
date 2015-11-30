@@ -998,11 +998,15 @@
           }
         });
         scope.$watch('wallet', function(wallet) {
-          var amount;
+          var amount_due;
           if (wallet && !scope.amount) {
-            if (scope.wallet_payment_options.basket_topup && scope.bb.basket.dueTotal() > wallet.amount) {
-              amount = Math.ceil(scope.bb.basket.dueTotal() / scope.amount_increment) * scope.amount_increment;
-              scope.amount = amount > wallet.min_amount ? amount : wallet.min_amount;
+            if (scope.wallet_payment_options.basket_topup) {
+              amount_due = scope.bb.basket.dueTotal() - wallet.amount;
+              if (amount_due > wallet.min_amount) {
+                scope.amount = Math.ceil(amount_due / scope.amount_increment) * scope.amount_increment;
+              } else {
+                scope.amount = wallet.min_amount;
+              }
               scope.min_amount = scope.amount;
             } else if (wallet.min_amount) {
               scope.amount = scope.wallet_payment_options.amount && scope.wallet_payment_options.amount > wallet.min_amount ? scope.wallet_payment_options.amount : wallet.min_amount;
@@ -1332,6 +1336,8 @@
     return {
       query: function(member, params) {
         var deferred;
+        params || (params = {});
+        params["no_cache"] = true;
         deferred = $q.defer();
         if (!member.$has('purchase_totals')) {
           deferred.reject("member does not have any purchases");
