@@ -311,7 +311,8 @@
     $scope.walletPaymentDone = function() {
       return $scope.getWalletForMember($scope.member).then(function() {
         AlertService.raise('TOPUP_SUCCESS');
-        return $rootScope.$broadcast("wallet:topped_up", wallet);
+        $rootScope.$broadcast("wallet:topped_up", wallet);
+        return $scope.wallet_topped_up = true;
       });
     };
     $scope.basketWalletPaymentDone = function() {
