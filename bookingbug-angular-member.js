@@ -206,7 +206,7 @@
         $scope.setLoaded($scope);
         $scope.wallet = wallet;
         updateClient(wallet);
-        return defer.resolve();
+        return defer.resolve(wallet);
       }, function(err) {
         $scope.setLoaded($scope);
         return defer.reject();
@@ -231,6 +231,21 @@
       });
       return defer.promise;
     };
+    $scope.getWalletPurchaseBandsForWallet = function(wallet) {
+      var defer;
+      defer = $q.defer();
+      $scope.notLoaded($scope);
+      WalletService.getWalletPurchaseBandsForWallet(wallet).then(function(bands) {
+        $scope.bands = bands;
+        $scope.setLoaded($scope);
+        return defer.resolve(bands);
+      }, function(err) {
+        $scope.setLoaded($scope);
+        $log.error(err.data);
+        return defer.reject([]);
+      });
+      return defer.promise;
+    };
     $scope.createWalletForMember = function(member) {
       $scope.notLoaded($scope);
       return WalletService.createWalletForMember(member).then(function(wallet) {
@@ -241,13 +256,17 @@
         return $log.error(err.data);
       });
     };
-    $scope.updateWallet = function(member, amount) {
+    $scope.updateWallet = function(member, amount, band) {
       var params;
+      if (band == null) {
+        band = null;
+      }
       $scope.notLoaded($scope);
-      if (member && amount) {
-        params = {
-          amount: amount
-        };
+      if (member) {
+        params = {};
+        if (amount > 0) {
+          params.amount = amount;
+        }
         if ($scope.wallet) {
           params.wallet_id = $scope.wallet.id;
         }
@@ -255,15 +274,18 @@
           params.total_id = $scope.total.id;
         }
         if ($scope.deposit) {
-          param.deposit = $scope.deposit;
+          params.deposit = $scope.deposit;
         }
         if ($scope.basket) {
           params.basket_total_price = $scope.basket.total_price;
         }
+        if (band) {
+          params.band_id = band.id;
+        }
         return WalletService.updateWalletForMember(member, params).then(function(wallet) {
           $scope.setLoaded($scope);
           $scope.wallet = wallet;
-          return $rootScope.$broadcast("wallet:updated", wallet);
+          return $rootScope.$broadcast("wallet:updated", wallet, band);
         }, function(err) {
           $scope.setLoaded($scope);
           return $log.error(err.data);
@@ -308,8 +330,12 @@
         });
       }
     };
+    $scope.purchaseBand = function(band) {
+      $scope.selected_band = band;
+      return $scope.updateWallet($scope.member, 0, band);
+    };
     $scope.walletPaymentDone = function() {
-      return $scope.getWalletForMember($scope.member).then(function() {
+      return $scope.getWalletForMember($scope.member).then(function(wallet) {
         AlertService.raise('TOPUP_SUCCESS');
         $rootScope.$broadcast("wallet:topped_up", wallet);
         return $scope.wallet_topped_up = true;
@@ -1057,9 +1083,15 @@
             });
           }
         });
-        scope.$on('wallet:updated', function(event, wallet) {
+        scope.$on('wallet:updated', function(event, wallet, band) {
+          if (band == null) {
+            band = null;
+          }
           if (wallet.$has('new_payment')) {
             scope.notLoaded(scope);
+            if (band) {
+              scope.amount = band.actual_amount;
+            }
             scope.wallet_payment_url = $sce.trustAsResourceUrl(wallet.$href("new_payment"));
             scope.show_payment_iframe = true;
             return element.find('iframe').bind('load', (function(_this) {
@@ -1109,6 +1141,24 @@
             });
           };
         })(this), false);
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module("BB.Directives").directive("bbWalletPurchaseBands", function($rootScope) {
+    return {
+      scope: true,
+      restrict: "AE",
+      templateUrl: "wallet_purchase_bands.html",
+      controller: "Wallet",
+      require: '^?bbWallet',
+      link: function(scope, attr, elem) {
+        return $rootScope.connection_started.then(function() {
+          return scope.getWalletPurchaseBandsForWallet(scope.wallet);
+        });
       }
     };
   });
@@ -1362,6 +1412,26 @@
       }
 
       return Member_WalletLog;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function(BBModel, BaseModel) {
+    var Member_WalletPurchaseBand;
+    return Member_WalletPurchaseBand = (function(superClass) {
+      extend(Member_WalletPurchaseBand, superClass);
+
+      function Member_WalletPurchaseBand(data) {
+        Member_WalletPurchaseBand.__super__.constructor.call(this, data);
+      }
+
+      return Member_WalletPurchaseBand;
 
     })(BaseModel);
   });
@@ -1715,6 +1785,32 @@
               return deferred.reject(err);
             };
           })(this));
+        }
+        return deferred.promise;
+      },
+      getWalletPurchaseBandsForWallet: function(wallet) {
+        var deferred;
+        deferred = $q.defer();
+        if (!wallet.$has('purchase_bands')) {
+          deferred.reject("No Purchase Bands");
+        } else {
+          wallet.$get("purchase_bands", {}).then(function(resource) {
+            return resource.$get("purchase_bands").then(function(bands) {
+              var band;
+              bands = (function() {
+                var i, len, results;
+                results = [];
+                for (i = 0, len = bands.length; i < len; i++) {
+                  band = bands[i];
+                  results.push(new BBModel.Member.WalletPurchaseBand(band));
+                }
+                return results;
+              })();
+              return deferred.resolve(bands);
+            });
+          }, function(err) {
+            return deferred.reject(err);
+          });
         }
         return deferred.promise;
       },
