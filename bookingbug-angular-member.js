@@ -242,7 +242,7 @@
       }, function(err) {
         $scope.setLoaded($scope);
         $log.error(err.data);
-        return defer.reject([]);
+        return defer.resolve([]);
       });
       return defer.promise;
     };
@@ -1155,9 +1155,25 @@
       templateUrl: "wallet_purchase_bands.html",
       controller: "Wallet",
       require: '^?bbWallet',
-      link: function(scope, attr, elem) {
+      link: function(scope, attr, elem, ctrl) {
+        scope.member = scope.$eval(attr.member);
+        if ($rootScope.member) {
+          scope.member || (scope.member = $rootScope.member);
+        }
         return $rootScope.connection_started.then(function() {
-          return scope.getWalletPurchaseBandsForWallet(scope.wallet);
+          var deregisterWatch;
+          if (ctrl) {
+            return deregisterWatch = scope.$watch('wallet', function() {
+              if (scope.wallet) {
+                scope.getWalletPurchaseBandsForWallet(scope.wallet);
+                return deregisterWatch();
+              }
+            });
+          } else {
+            return scope.getWalletForMember(scope.member).then(function() {
+              return scope.getWalletPurchaseBandsForWallet(scope.wallet);
+            });
+          }
         });
       }
     };
