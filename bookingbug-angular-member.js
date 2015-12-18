@@ -31,16 +31,22 @@
     var getBookings, updateBookings;
     $scope.loading = true;
     $scope.getUpcomingBookings = function() {
-      var params;
+      var defer, params;
+      defer = $q.defer();
       params = {
         start_date: moment().format('YYYY-MM-DD')
       };
-      return getBookings(params).then(function(bookings) {
-        return $scope.upcoming_bookings = bookings;
+      getBookings(params).then(function(upcoming_bookings) {
+        $scope.upcoming_bookings = upcoming_bookings;
+        return defer.resolve(upcoming_bookings);
+      }, function(err) {
+        return defer.reject([]);
       });
+      return defer.promise;
     };
     $scope.getPastBookings = function(num, type) {
-      var date, params;
+      var date, defer, params;
+      defer = $q.defer();
       if (num && type) {
         date = moment().subtract(num, type);
       } else {
@@ -50,13 +56,17 @@
         start_date: date.format('YYYY-MM-DD'),
         end_date: moment().format('YYYY-MM-DD')
       };
-      return getBookings(params).then(function(bookings) {
-        return $scope.past_bookings = _.chain(bookings).filter(function(b) {
+      getBookings(params).then(function(past_bookings) {
+        $scope.past_bookings = _.chain(past_bookings).filter(function(b) {
           return b.datetime.isBefore(moment());
         }).sortBy(function(b) {
           return -b.datetime.unix();
         }).value();
+        return defer.resolve(past_bookings);
+      }, function(err) {
+        return defer.reject([]);
       });
+      return defer.promise;
     };
     $scope.flushBookings = function() {
       var params;
@@ -127,7 +137,7 @@
       $scope.loading = true;
       return MemberBookingService.cancel($scope.member, booking).then(function() {
         var removeBooking;
-        $scope.$emit("cancel:success");
+        $rootScope.$broadcast("booking:cancelled");
         removeBooking = function(booking, bookings) {
           return bookings.filter(function(b) {
             return b.id !== booking.id;
@@ -154,6 +164,7 @@
         $scope.pre_paid_bookings = bookings;
         return defer.resolve(bookings);
       }, function(err) {
+        defer.reject([]);
         $log.error(err.data);
         return $scope.loading = false;
       });
@@ -164,68 +175,98 @@
 }).call(this);
 
 (function() {
-  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope) {
-    if ($scope.member) {
-      $scope.company_id = $scope.member.company_id;
-    }
-    $scope.show_wallet_logs = false;
-    $scope.loading = true;
-    $scope.error_message = false;
-    $scope.payment_success = false;
-    $scope.toggleWalletPaymentLogs = function() {
-      if ($scope.show_wallet_logs) {
-        return $scope.show_wallet_logs = false;
-      } else {
-        return $scope.show_wallet_logs = true;
-      }
+  angular.module("BBMember").controller("MemberPurchases", function($scope, $q, MemberPurchaseService, $log) {
+    return $scope.getPurchases = function() {
+      var defer;
+      $scope.notLoaded($scope);
+      defer = $q.defer();
+      MemberPurchaseService.query($scope.member, {}).then(function(purchases) {
+        $scope.purchases = purchases;
+        $scope.setLoaded($scope);
+        return defer.resolve(purchases);
+      }, function(err) {
+        $log.error(err.data);
+        $scope.setLoaded($scope);
+        return defer.reject([]);
+      });
+      return defer.promise;
     };
-    $scope.showTopUpBox = function() {
-      if ($scope.amount) {
-        return true;
-      } else {
-        return $scope.show_topup_box;
-      }
-    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope, AlertService) {
+    var updateClient;
     $scope.getWalletForMember = function(member, params) {
-      $scope.loading = true;
-      return WalletService.getWalletForMember(member, params).then(function(wallet) {
-        $scope.loading = false;
+      var defer;
+      defer = $q.defer();
+      $scope.notLoaded($scope);
+      WalletService.getWalletForMember(member, params).then(function(wallet) {
+        $scope.setLoaded($scope);
         $scope.wallet = wallet;
-        return $scope.wallet;
+        updateClient(wallet);
+        return defer.resolve(wallet);
       }, function(err) {
-        $scope.loading = false;
-        return $log.error(err.data);
+        $scope.setLoaded($scope);
+        return defer.reject();
       });
+      return defer.promise;
     };
-    $scope.getWalletLogs = function(wallet) {
-      $scope.loading = true;
-      return WalletService.getWalletLogs($scope.wallet).then(function(logs) {
-        $scope.loading = false;
-        return $scope.logs = logs;
+    $scope.getWalletLogs = function() {
+      var defer;
+      defer = $q.defer();
+      $scope.notLoaded($scope);
+      WalletService.getWalletLogs($scope.wallet).then(function(logs) {
+        logs = _.sortBy(logs, function(log) {
+          return -moment(log.created_at).unix();
+        });
+        $scope.setLoaded($scope);
+        $scope.logs = logs;
+        return defer.resolve(logs);
       }, function(err) {
-        $scope.loading = false;
-        return $log.error(err.data);
+        $scope.setLoaded($scope);
+        $log.error(err.data);
+        return defer.reject([]);
       });
+      return defer.promise;
+    };
+    $scope.getWalletPurchaseBandsForWallet = function(wallet) {
+      var defer;
+      defer = $q.defer();
+      $scope.notLoaded($scope);
+      WalletService.getWalletPurchaseBandsForWallet(wallet).then(function(bands) {
+        $scope.bands = bands;
+        $scope.setLoaded($scope);
+        return defer.resolve(bands);
+      }, function(err) {
+        $scope.setLoaded($scope);
+        $log.error(err.data);
+        return defer.reject([]);
+      });
+      return defer.promise;
     };
     $scope.createWalletForMember = function(member) {
-      $scope.loading = true;
+      $scope.notLoaded($scope);
       return WalletService.createWalletForMember(member).then(function(wallet) {
-        $scope.loading = false;
+        $scope.setLoaded($scope);
         return $scope.wallet = wallet;
       }, function(err) {
-        $scope.loading = false;
+        $scope.setLoaded($scope);
         return $log.error(err.data);
       });
     };
-    $scope.updateWallet = function(member, amount) {
+    $scope.updateWallet = function(member, amount, band) {
       var params;
-      $scope.loading = true;
-      $scope.payment_success = false;
-      $scope.error_message = false;
-      if (member && amount) {
-        params = {
-          amount: amount
-        };
+      if (band == null) {
+        band = null;
+      }
+      $scope.notLoaded($scope);
+      if (member) {
+        params = {};
+        if (amount > 0) {
+          params.amount = amount;
+        }
         if ($scope.wallet) {
           params.wallet_id = $scope.wallet.id;
         }
@@ -233,23 +274,27 @@
           params.total_id = $scope.total.id;
         }
         if ($scope.deposit) {
-          param.deposit = $scope.deposit;
+          params.deposit = $scope.deposit;
         }
         if ($scope.basket) {
           params.basket_total_price = $scope.basket.total_price;
         }
+        if (band) {
+          params.band_id = band.id;
+        }
         return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.loading = false;
-          return $scope.wallet = wallet;
+          $scope.setLoaded($scope);
+          $scope.wallet = wallet;
+          return $rootScope.$broadcast("wallet:updated", wallet, band);
         }, function(err) {
-          $scope.loading = false;
+          $scope.setLoaded($scope);
           return $log.error(err.data);
         });
       }
     };
     $scope.activateWallet = function(member) {
       var params;
-      $scope.loading = true;
+      $scope.notLoaded($scope);
       if (member) {
         params = {
           status: 1
@@ -258,17 +303,17 @@
           params.wallet_id = $scope.wallet.id;
         }
         return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.loading = false;
+          $scope.setLoaded($scope);
           return $scope.wallet = wallet;
         }, function(err) {
-          $scope.loading = false;
+          $scope.setLoaded($scope);
           return $log.error(err.date);
         });
       }
     };
     $scope.deactivateWallet = function(member) {
       var params;
-      $scope.loading = true;
+      $scope.notLoaded($scope);
       if (member) {
         params = {
           status: 0
@@ -277,42 +322,53 @@
           params.wallet_id = $scope.wallet.id;
         }
         return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.loading = false;
+          $scope.setLoaded($scope);
           return $scope.wallet = wallet;
         }, function(err) {
-          $scope.loading = false;
+          $scope.setLoaded($scope);
           return $log.error(err.date);
         });
       }
     };
-    $scope.callNotLoaded = (function(_this) {
-      return function() {
-        $scope.loading = true;
-        return $scope.$emit('wallet_payment:loading');
-      };
-    })(this);
-    $scope.callSetLoaded = (function(_this) {
-      return function() {
-        $scope.loading = false;
-        return $scope.$emit('wallet_payment:finished_loading');
-      };
-    })(this);
+    $scope.purchaseBand = function(band) {
+      $scope.selected_band = band;
+      return $scope.updateWallet($scope.member, 0, band);
+    };
     $scope.walletPaymentDone = function() {
-      var params;
-      params = {
-        no_cache: true
-      };
-      return $scope.getWalletForMember($scope.member, params).then(function(wallet) {
-        return $scope.$emit("wallet_payment:success", wallet);
+      return $scope.getWalletForMember($scope.member).then(function(wallet) {
+        AlertService.raise('TOPUP_SUCCESS');
+        $rootScope.$broadcast("wallet:topped_up", wallet);
+        return $scope.wallet_topped_up = true;
       });
     };
     $scope.basketWalletPaymentDone = function() {
+      $scope.callSetLoaded();
       return $scope.decideNextPage('checkout');
     };
-    return $scope.error = function(message) {
-      $scope.error_message = "Payment Failure: " + message;
-      $log.warn("Payment Failure: " + message);
-      return $scope.$emit("wallet_payment:error", $scope.error_message);
+    $scope.error = function(message) {
+      return AlertService.warning('TOPUP_FAILED');
+    };
+    $scope.add = function(value) {
+      value = value || $scope.amount_increment;
+      return $scope.amount += value;
+    };
+    $scope.subtract = function(value) {
+      value = value || $scope.amount_increment;
+      return $scope.add(-value);
+    };
+    $scope.isSubtractValid = function(value) {
+      var new_amount;
+      if (!$scope.wallet) {
+        return false;
+      }
+      value = value || $scope.amount_increment;
+      new_amount = $scope.amount - value;
+      return new_amount >= $scope.wallet.min_amount;
+    };
+    return updateClient = function(wallet) {
+      if ($scope.member.self === $scope.client.self) {
+        return $scope.client.wallet_amount = wallet.amount;
+      }
     };
   });
 
@@ -664,7 +720,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberPastBookings', function($rootScope) {
+  angular.module('BBMember').directive('bbMemberPastBookings', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_past_bookings.html',
       scope: {
@@ -677,8 +733,14 @@
         $rootScope.bb || ($rootScope.bb = {});
         (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
         (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        scope.pagination = PaginationService.initialise({
+          page_size: 10,
+          max_size: 5
+        });
         getBookings = function() {
-          return scope.getPastBookings();
+          return scope.getPastBookings().then(function(past_bookings) {
+            return PaginationService.update(scope.pagination, past_bookings.length);
+          });
         };
         scope.$watch('member', function() {
           if (!scope.past_bookings) {
@@ -686,7 +748,7 @@
           }
         });
         return $rootScope.connection_started.then(function() {
-          return getBookings;
+          return getBookings();
         });
       }
     };
@@ -695,7 +757,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberPrePaidBookings', function($rootScope) {
+  angular.module('BBMember').directive('bbMemberPrePaidBookings', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_pre_paid_bookings.html',
       scope: {
@@ -708,10 +770,13 @@
         $rootScope.bb || ($rootScope.bb = {});
         (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
         (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-        scope.loading = true;
+        scope.pagination = PaginationService.initialise({
+          page_size: 10,
+          max_size: 5
+        });
         getBookings = function() {
-          return scope.getPrePaidBookings({})["finally"](function() {
-            return scope.loading = false;
+          return scope.getPrePaidBookings({}).then(function(pre_paid_bookings) {
+            return PaginationService.update(scope.pagination, pre_paid_bookings.length);
           });
         };
         scope.$watch('member', function() {
@@ -721,6 +786,54 @@
         });
         return $rootScope.connection_started.then(function() {
           return getBookings();
+        });
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember').directive('bbMemberPurchaseItems', function($rootScope) {
+    return {
+      scope: true,
+      link: function(scope, element, attrs) {
+        var getItems;
+        getItems = function() {
+          return scope.purchase.getItems().then(function(items) {
+            return scope.items = items;
+          });
+        };
+        return scope.$watch('purchase', function() {
+          return getItems();
+        });
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember').directive('bbMemberPurchases', function($rootScope, PaginationService) {
+    return {
+      templateUrl: 'member_purchases.html',
+      scope: true,
+      controller: 'MemberPurchases',
+      link: function(scope, element, attrs) {
+        scope.member = scope.$eval(attrs.member);
+        if ($rootScope.member) {
+          scope.member || (scope.member = $rootScope.member);
+        }
+        scope.pagination = PaginationService.initialise({
+          page_size: 10,
+          max_size: 5
+        });
+        return $rootScope.connection_started.then(function() {
+          if (scope.member) {
+            return scope.getPurchases().then(function(purchases) {
+              return PaginationService.update(scope.pagination, purchases.length);
+            });
+          }
         });
       }
     };
@@ -772,7 +885,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope) {
+  angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_upcoming_bookings.html',
       scope: {
@@ -785,8 +898,14 @@
         $rootScope.bb || ($rootScope.bb = {});
         (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
         (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        scope.pagination = PaginationService.initialise({
+          page_size: 10,
+          max_size: 5
+        });
         getBookings = function() {
-          return scope.getUpcomingBookings();
+          return scope.getUpcomingBookings().then(function(upcoming_bookings) {
+            return PaginationService.update(scope.pagination, upcoming_bookings.length);
+          });
         };
         scope.$on('updateBookings', function() {
           scope.flushBookings();
@@ -798,7 +917,7 @@
           }
         });
         return $rootScope.connection_started.then(function() {
-          return getBookings;
+          return getBookings();
         });
       }
     };
@@ -808,194 +927,239 @@
 
 (function() {
   angular.module('BBMember').directive('bbWallet', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getWalletForMember;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      if ($rootScope.member) {
-        scope.member || (scope.member = $rootScope.member);
-      }
-      getWalletForMember = function() {
-        return scope.getWalletForMember(scope.member, {});
-      };
-      scope.$watch('member', function(member) {
-        if (member != null) {
-          getWalletForMember();
-        }
-        if (scope.amount) {
-          return getWalletForMember();
-        }
-      });
-      scope.$on('wallet_payment:success', function(event, wallet) {
-        scope.wallet = wallet;
-        scope.payment_success = true;
-        scope.error_message = false;
-        return scope.show_topup_box = false;
-      });
-      scope.$on('wallet_payment:error', function(event, error) {
-        scope.error_message = error;
-        return scope.payment_success = false;
-      });
-      scope.$on('wallet_payment:loading', function(event) {
-        return scope.loading = true;
-      });
-      return scope.$on('wallet_payment:finished_loading', function(event) {
-        return scope.loading = false;
-      });
-    };
     return {
-      link: link,
+      scope: true,
       controller: 'Wallet',
       templateUrl: 'wallet.html',
-      scope: {
-        apiUrl: '@',
-        member: '='
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember').directive('bbWalletLogs', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, getWalletForMember, getWalletLogsForWallet;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      getWalletLogsForWallet = function() {
-        return scope.getWalletLogs(scope.wallet);
-      };
-      getWalletForMember = function() {
-        return scope.getWalletForMember(scope.member);
-      };
-      scope.$watch('member', function(member) {
-        if (member != null) {
-          return getWalletForMember();
+      link: function(scope, element, attrs) {
+        scope.member = scope.$eval(attrs.member);
+        if ($rootScope.member) {
+          scope.member || (scope.member = $rootScope.member);
         }
-      });
-      return scope.$watch('wallet', function(wallet) {
-        if (wallet != null) {
-          return getWalletLogsForWallet();
-        }
-      });
-    };
-    return {
-      link: link,
-      controller: 'Wallet',
-      templateUrl: 'wallet_logs.html',
-      scope: {
-        member: '=',
-        wallet: '='
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module("BB.Directives").directive("bbWalletPayment", function($sce, $rootScope, $window, $location, SettingsService) {
-    var getHost, link, sendLoadEvent;
-    getHost = function(url) {
-      var a;
-      a = document.createElement('a');
-      a.href = url;
-      return a['protocol'] + '//' + a['host'];
-    };
-    sendLoadEvent = function(element, origin, scope) {
-      var custom_partial_url, custom_stylesheet, payload, referrer;
-      referrer = $location.protocol() + "://" + $location.host();
-      if ($location.port()) {
-        referrer += ":" + $location.port();
-      }
-      custom_stylesheet = scope.options.custom_stylesheet ? scope.options.custom_stylesheet : null;
-      custom_partial_url = scope.bb && scope.bb.custom_partial_url ? scope.bb.custom_partial_url : null;
-      payload = JSON.stringify({
-        'type': 'load',
-        'message': referrer,
-        'custom_partial_url': custom_partial_url,
-        'custom_stylesheet': custom_stylesheet,
-        'scroll_offset': SettingsService.getScrollOffset()
-      });
-      return element.find('iframe')[0].contentWindow.postMessage(payload, origin);
-    };
-    link = function(scope, element, attrs) {
-      var getWalletForMember;
-      scope.options = scope.$eval(attrs.bbWalletPayment) || {};
-      if ($rootScope.member) {
-        scope.member || (scope.member = $rootScope.member);
-      }
-      if (scope.options.member) {
-        scope.member || (scope.member = scope.options.member);
-      }
-      if (scope.options.amount) {
-        scope.amount = scope.options.amount;
-      }
-      getWalletForMember = function() {
-        return scope.getWalletForMember(scope.member, {});
-      };
-      scope.$watch('member', function(member) {
-        if (member != null) {
-          getWalletForMember();
-        }
-        if (scope.amount) {
-          return getWalletForMember();
-        }
-      });
-      scope.$watch('wallet', function(wallet) {
-        if (wallet && wallet.$has('new_payment')) {
-          scope.wallet_payment_url = $sce.trustAsResourceUrl(scope.wallet.$href("new_payment"));
-          return element.find('iframe').bind('load', (function(_this) {
-            return function(event) {
-              var origin, url;
-              if (scope.wallet_payment_url) {
-                url = scope.wallet_payment_url;
-              }
-              origin = getHost(url);
-              sendLoadEvent(element, origin, scope);
-              return scope.$apply(function() {
-                return scope.callSetLoaded();
-              });
-            };
-          })(this));
-        }
-      });
-      return $window.addEventListener('message', (function(_this) {
-        return function(event) {
-          var data;
-          if (angular.isObject(event.data)) {
-            data = event.data;
-          } else if (!event.data.match(/iFrameSizer/)) {
-            data = JSON.parse(event.data);
+        scope.show_wallet_logs = true;
+        scope.show_topup_box = false;
+        $rootScope.connection_started.then(function() {
+          if (scope.member) {
+            return scope.getWalletForMember(scope.member);
           }
-          return scope.$apply(function() {
-            if (data) {
-              switch (data.type) {
-                case "submitting":
-                  return scope.callNotLoaded();
-                case "error":
-                  scope.callSetLoaded();
-                  return scope.error(data.message);
-                case "wallet_payment_complete":
-                  return scope.walletPaymentDone();
-                case 'basket_wallet_payment_complete':
-                  scope.callSetLoaded();
-                  return scope.basketWalletPaymentDone();
-              }
-            }
+        });
+        scope.$on('wallet:topped_up', function(event, wallet) {
+          scope.wallet = wallet;
+          scope.show_topup_box = false;
+          return scope.show_wallet_logs = true;
+        });
+        return scope.$on("booking:cancelled", function(event) {
+          if (scope.member) {
+            return scope.getWalletForMember(scope.member);
+          }
+        });
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember').directive('bbWalletLogs', function($rootScope, PaginationService) {
+    return {
+      templateUrl: 'wallet_logs.html',
+      scope: true,
+      controller: 'Wallet',
+      require: '^?bbWallet',
+      link: function(scope, element, attrs, ctrl) {
+        var getWalletLogs;
+        scope.member = scope.$eval(attrs.member);
+        if ($rootScope.member) {
+          scope.member || (scope.member = $rootScope.member);
+        }
+        scope.pagination = PaginationService.initialise({
+          page_size: 10,
+          max_size: 5
+        });
+        getWalletLogs = function() {
+          return scope.getWalletLogs().then(function(logs) {
+            return PaginationService.update(scope.pagination, logs.length);
           });
         };
-      })(this), false);
+        scope.$on('wallet:topped_up', function(event) {
+          return getWalletLogs();
+        });
+        return $rootScope.connection_started.then(function() {
+          var deregisterWatch;
+          if (ctrl) {
+            return deregisterWatch = scope.$watch('wallet', function() {
+              if (scope.wallet) {
+                getWalletLogs();
+                return deregisterWatch();
+              }
+            });
+          } else {
+            return scope.getWalletForMember(scope.member).then(function() {
+              return getWalletLogs();
+            });
+          }
+        });
+      }
     };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module("BB.Directives").directive("bbWalletPayment", function($sce, $rootScope, $window, $location, SettingsService, AlertService) {
     return {
       restrict: 'A',
-      link: link,
       controller: 'Wallet',
       scope: true,
-      replace: true
+      replace: true,
+      require: '^?bbWallet',
+      link: function(scope, element, attrs, ctrl) {
+        var calculateAmount, getHost, one_pound, sendLoadEvent;
+        one_pound = 100;
+        scope.wallet_payment_options = scope.$eval(attrs.bbWalletPayment) || {};
+        scope.member = scope.$eval(attrs.member);
+        if ($rootScope.member) {
+          scope.member || (scope.member = $rootScope.member);
+        }
+        if (scope.wallet_payment_options.member) {
+          scope.member || (scope.member = scope.wallet_payment_options.member);
+        }
+        scope.amount_increment = scope.wallet_payment_options.amount_increment || one_pound;
+        getHost = function(url) {
+          var a;
+          a = document.createElement('a');
+          a.href = url;
+          return a['protocol'] + '//' + a['host'];
+        };
+        sendLoadEvent = function(element, origin, scope) {
+          var custom_partial_url, custom_stylesheet, payload, referrer;
+          referrer = $location.protocol() + "://" + $location.host();
+          if ($location.port()) {
+            referrer += ":" + $location.port();
+          }
+          custom_stylesheet = scope.wallet_payment_options.custom_stylesheet ? scope.wallet_payment_options.custom_stylesheet : null;
+          custom_partial_url = scope.bb && scope.bb.custom_partial_url ? scope.bb.custom_partial_url : null;
+          payload = JSON.stringify({
+            'type': 'load',
+            'message': referrer,
+            'custom_partial_url': custom_partial_url,
+            'custom_stylesheet': custom_stylesheet,
+            'scroll_offset': SettingsService.getScrollOffset()
+          });
+          return element.find('iframe')[0].contentWindow.postMessage(payload, origin);
+        };
+        calculateAmount = function() {
+          var amount_due;
+          if (scope.wallet_payment_options.basket_topup) {
+            amount_due = scope.bb.basket.dueTotal() - scope.wallet.amount;
+            if (amount_due > scope.wallet.min_amount) {
+              scope.amount = Math.ceil(amount_due / scope.amount_increment) * scope.amount_increment;
+            } else {
+              scope.amount = scope.wallet.min_amount;
+            }
+            return scope.min_amount = scope.amount;
+          } else if (scope.wallet.min_amount) {
+            scope.amount = scope.wallet_payment_options.amount && scope.wallet_payment_options.amount > scope.wallet.min_amount ? scope.wallet_payment_options.amount : scope.wallet.min_amount;
+            return scope.min_amount = scope.wallet.min_amount;
+          } else {
+            scope.min_amount = 0;
+            if (scope.wallet_payment_options.amount) {
+              return scope.amount = scope.wallet_payment_options.amount;
+            }
+          }
+        };
+        $rootScope.connection_started.then(function() {
+          var deregisterWatch;
+          if (ctrl) {
+            return deregisterWatch = scope.$watch('wallet', function() {
+              if (scope.wallet) {
+                calculateAmount();
+                return deregisterWatch();
+              }
+            });
+          } else {
+            return scope.getWalletForMember(scope.member).then(function() {
+              return calculateAmount();
+            });
+          }
+        });
+        scope.$on('wallet:updated', function(event, wallet, band) {
+          if (band == null) {
+            band = null;
+          }
+          if (wallet.$has('new_payment')) {
+            scope.notLoaded(scope);
+            if (band) {
+              scope.amount = band.actual_amount;
+            }
+            scope.wallet_payment_url = $sce.trustAsResourceUrl(wallet.$href("new_payment"));
+            scope.show_payment_iframe = true;
+            return element.find('iframe').bind('load', (function(_this) {
+              return function(event) {
+                var origin, url;
+                if (scope.wallet_payment_url) {
+                  url = scope.wallet_payment_url;
+                }
+                origin = getHost(url);
+                sendLoadEvent(element, origin, scope);
+                return scope.$apply(function() {
+                  return scope.setLoaded(scope);
+                });
+              };
+            })(this));
+          }
+        });
+        return $window.addEventListener('message', (function(_this) {
+          return function(event) {
+            var data;
+            if (angular.isObject(event.data)) {
+              data = event.data;
+            } else if (!event.data.match(/iFrameSizer/)) {
+              data = JSON.parse(event.data);
+            }
+            return scope.$apply(function() {
+              if (data) {
+                switch (data.type) {
+                  case "submitting":
+                    return scope.notLoaded(scope);
+                  case "error":
+                    $rootScope.$broadcast("wallet:topup_failed");
+                    scope.notLoaded(scope);
+                    document.getElementsByTagName("iframe")[0].src += '';
+                    return AlertService.raise('PAYMENT_FAILED');
+                  case "payment_complete":
+                  case "wallet_payment_complete":
+                  case "basket_wallet_payment_complete":
+                    scope.show_payment_iframe = false;
+                    if (scope.wallet_payment_options.basket_topup) {
+                      return scope.basketWalletPaymentDone();
+                    } else {
+                      return scope.walletPaymentDone();
+                    }
+                }
+              }
+            });
+          };
+        })(this), false);
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module("BB.Directives").directive("bbWalletPurchaseBands", function($rootScope) {
+    return {
+      scope: true,
+      restrict: "AE",
+      templateUrl: "wallet_purchase_bands.html",
+      controller: "Wallet",
+      require: '^?bbWallet',
+      link: function(scope, attr, elem) {
+        return $rootScope.connection_started.then(function() {
+          return scope.getWalletPurchaseBandsForWallet(scope.wallet);
+        });
+      }
     };
   });
 
@@ -1141,15 +1305,6 @@
         return Member_Member.__super__.constructor.apply(this, arguments);
       }
 
-      Member_Member.prototype.wallet = function() {
-        if (this.$has("wallet")) {
-          return this.$get("wallet").then(function(wallet) {
-            this.wallet = wallet;
-            return this.wallet;
-          });
-        }
-      };
-
       return Member_Member;
 
     })(ClientModel);
@@ -1161,28 +1316,59 @@
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module('BB.Models').factory("Member.PrePaidBookingModel", function($q, BBModel, BaseModel) {
-    var Member_PrePaidBooking;
-    return Member_PrePaidBooking = (function(superClass) {
-      extend(Member_PrePaidBooking, superClass);
+  angular.module("BB.Models").factory("Member.PurchaseModel", function(BBModel, BaseModel, $q) {
+    var Member_Purchase;
+    return Member_Purchase = (function(superClass) {
+      extend(Member_Purchase, superClass);
 
-      function Member_PrePaidBooking(data) {
-        Member_PrePaidBooking.__super__.constructor.call(this, data);
+      function Member_Purchase(data) {
+        Member_Purchase.__super__.constructor.call(this, data);
+        this.created_at = moment.parseZone(this.created_at);
+        if (this.time_zone) {
+          this.created_at.tz(this.time_zone);
+        }
       }
 
-      Member_PrePaidBooking.prototype.checkValidity = function(event) {
-        if (this.service_id && event.service_id && this.service_id !== event.service_id) {
-          return false;
-        } else if (this.resource_id && event.resource_id && this.resource_id !== event.resource_id) {
-          return false;
-        } else if (this.person_id && event.person_id && this.person_id !== event.person_id) {
-          return false;
-        } else {
-          return true;
-        }
+      Member_Purchase.prototype.getItems = function() {
+        var deferred;
+        deferred = $q.defer();
+        this._data.$get('purchase_items').then(function(items) {
+          var item;
+          this.items = (function() {
+            var i, len, results;
+            results = [];
+            for (i = 0, len = items.length; i < len; i++) {
+              item = items[i];
+              results.push(new BBModel.Member.PurchaseItem(item));
+            }
+            return results;
+          })();
+          return deferred.resolve(this.items);
+        });
+        return deferred.promise;
       };
 
-      return Member_PrePaidBooking;
+      return Member_Purchase;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory("Member.PurchaseItemModel", function(BBModel, BaseModel) {
+    var Member_PurchaseItem;
+    return Member_PurchaseItem = (function(superClass) {
+      extend(Member_PurchaseItem, superClass);
+
+      function Member_PurchaseItem(data) {
+        Member_PurchaseItem.__super__.constructor.call(this, data);
+      }
+
+      return Member_PurchaseItem;
 
     })(BaseModel);
   });
@@ -1220,9 +1406,32 @@
 
       function Member_WalletLog(data) {
         Member_WalletLog.__super__.constructor.call(this, data);
+        this.created_at = moment(this.created_at);
+        this.payment_amount = parseFloat(this.amount) * 100;
+        this.new_wallet_amount = parseFloat(this.new_wallet_amount) * 100;
       }
 
       return Member_WalletLog;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function(BBModel, BaseModel) {
+    var Member_WalletPurchaseBand;
+    return Member_WalletPurchaseBand = (function(superClass) {
+      extend(Member_WalletPurchaseBand, superClass);
+
+      function Member_WalletPurchaseBand(data) {
+        Member_WalletPurchaseBand.__super__.constructor.call(this, data);
+      }
+
+      return Member_WalletPurchaseBand;
 
     })(BaseModel);
   });
@@ -1401,6 +1610,36 @@
         };
         setTimeout(callback, 200);
         return deferred.promise;
+      },
+      updateMember: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        member.$put('self', {}, params).then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      },
+      sendWelcomeEmail: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        member.$post('send_welcome_email', params).then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
       }
     };
   });
@@ -1425,7 +1664,7 @@
                   results = [];
                   for (i = 0, len = bookings.length; i < len; i++) {
                     booking = bookings[i];
-                    results.push(new BBModel.Member.PrePaidBooking(booking));
+                    results.push(new BBModel.PrePaidBooking(booking));
                   }
                   return results;
                 })();
@@ -1437,7 +1676,7 @@
                     results = [];
                     for (i = 0, len = bookings.length; i < len; i++) {
                       booking = bookings[i];
-                      results.push(new BBModel.Member.PrePaidBooking(booking));
+                      results.push(new BBModel.PrePaidBooking(booking));
                     }
                     return results;
                   })();
@@ -1459,10 +1698,52 @@
 }).call(this);
 
 (function() {
+  angular.module('BB.Services').factory("MemberPurchaseService", function($q, $rootScope, BBModel) {
+    return {
+      query: function(member, params) {
+        var deferred;
+        params || (params = {});
+        params["no_cache"] = true;
+        deferred = $q.defer();
+        if (!member.$has('purchase_totals')) {
+          deferred.reject("member does not have any purchases");
+        } else {
+          member.$get('purchase_totals', params).then((function(_this) {
+            return function(purchases) {
+              return purchases.$get('purchase_totals', params).then(function(purchases) {
+                var purchase;
+                purchases = (function() {
+                  var i, len, results;
+                  results = [];
+                  for (i = 0, len = purchases.length; i < len; i++) {
+                    purchase = purchases[i];
+                    results.push(new BBModel.Member.Purchase(purchase));
+                  }
+                  return results;
+                })();
+                return deferred.resolve(purchases);
+              }, function(err) {
+                return deferred.reject(err);
+              });
+            };
+          })(this), function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
   angular.module("BB.Services").factory("WalletService", function($q, BBModel) {
     return {
       getWalletForMember: function(member, params) {
         var deferred;
+        params || (params = {});
+        params["no_cache"] = true;
         deferred = $q.defer();
         if (!member.$has("wallet")) {
           deferred.reject("Wallets are not turned on.");
@@ -1477,12 +1758,15 @@
         return deferred.promise;
       },
       getWalletLogs: function(wallet) {
-        var deferred;
+        var deferred, params;
+        params = {
+          no_cache: true
+        };
         deferred = $q.defer();
         if (!wallet.$has('logs')) {
-          deferred.reject("No Payments found");
+          deferred.reject("No wallet transactions found");
         } else {
-          wallet.$get('logs').then(function(resource) {
+          wallet.$get('logs', params).then(function(resource) {
             return resource.$get('logs').then(function(logs) {
               var log;
               logs = (function() {
@@ -1501,6 +1785,32 @@
               return deferred.reject(err);
             };
           })(this));
+        }
+        return deferred.promise;
+      },
+      getWalletPurchaseBandsForWallet: function(wallet) {
+        var deferred;
+        deferred = $q.defer();
+        if (!wallet.$has('purchase_bands')) {
+          deferred.reject("No Purchase Bands");
+        } else {
+          wallet.$get("purchase_bands", {}).then(function(resource) {
+            return resource.$get("purchase_bands").then(function(bands) {
+              var band;
+              bands = (function() {
+                var i, len, results;
+                results = [];
+                for (i = 0, len = bands.length; i < len; i++) {
+                  band = bands[i];
+                  results.push(new BBModel.Member.WalletPurchaseBand(band));
+                }
+                return results;
+              })();
+              return deferred.resolve(bands);
+            });
+          }, function(err) {
+            return deferred.reject(err);
+          });
         }
         return deferred.promise;
       },
