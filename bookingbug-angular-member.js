@@ -332,7 +332,7 @@
     };
     $scope.purchaseBand = function(band) {
       $scope.selected_band = band;
-      return $scope.updateWallet($scope.member, 0, band);
+      return $scope.updateWallet($scope.member, band.wallet_amount, band);
     };
     $scope.walletPaymentDone = function() {
       return $scope.getWalletForMember($scope.member).then(function(wallet) {
