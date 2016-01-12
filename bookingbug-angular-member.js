@@ -863,6 +863,26 @@
 }).call(this);
 
 (function() {
+  angular.module('BBMember').directive('bbMemberPurchaseItems', function($rootScope) {
+    return {
+      scope: true,
+      link: function(scope, element, attrs) {
+        var getItems;
+        getItems = function() {
+          return scope.purchase.getItems().then(function(items) {
+            return scope.items = items;
+          });
+        };
+        return scope.$watch('purchase', function() {
+          return getItems();
+        });
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
   angular.module('BBMember').directive('bbMemberPurchases', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_purchases.html',
@@ -883,26 +903,6 @@
               return PaginationService.update(scope.pagination, purchases.length);
             });
           }
-        });
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember').directive('bbMemberPurchaseItems', function($rootScope) {
-    return {
-      scope: true,
-      link: function(scope, element, attrs) {
-        var getItems;
-        getItems = function() {
-          return scope.purchase.getItems().then(function(items) {
-            return scope.items = items;
-          });
-        };
-        return scope.$watch('purchase', function() {
-          return getItems();
         });
       }
     };
