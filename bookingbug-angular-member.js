@@ -242,7 +242,7 @@
       }, function(err) {
         $scope.setLoaded($scope);
         $log.error(err.data);
-        return defer.reject([]);
+        return defer.resolve([]);
       });
       return defer.promise;
     };
@@ -332,7 +332,7 @@
     };
     $scope.purchaseBand = function(band) {
       $scope.selected_band = band;
-      return $scope.updateWallet($scope.member, 0, band);
+      return $scope.updateWallet($scope.member, band.wallet_amount, band);
     };
     $scope.walletPaymentDone = function() {
       return $scope.getWalletForMember($scope.member).then(function(wallet) {
@@ -396,12 +396,12 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('memberBookingsTable', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, $compile, $templateCache, ModalForm) {
-    var controller, link;
+  angular.module('BBMember').directive('memberBookingsTable', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, $compile, $templateCache, ModalForm, BBModel, Dialog) {
+    var controller;
     controller = function($scope, $modal) {
       var getBookings;
       $scope.loading = true;
-      $scope.fields || ($scope.fields = ['describe', 'full_describe']);
+      $scope.fields || ($scope.fields = ['datetime', 'details']);
       $scope.$watch('member', function(member) {
         if (member != null) {
           return getBookings($scope, member);
@@ -413,50 +413,111 @@
           return b.id === id;
         });
         return booking.getAnswersPromise().then(function(answers) {
-          var answer, i, len, ref;
+          var answer, j, len, ref;
           ref = answers.answers;
-          for (i = 0, len = ref.length; i < len; i++) {
-            answer = ref[i];
+          for (j = 0, len = ref.length; j < len; j++) {
+            answer = ref[j];
             booking["question" + answer.question_id] = answer.value;
           }
           return ModalForm.edit({
             model: booking,
             title: 'Booking Details',
-            templateUrl: 'edit_booking_modal_form.html'
+            templateUrl: 'edit_booking_modal_form.html',
+            success: function(b) {
+              var i;
+              b = new BBModel.Member.Booking(b);
+              i = _.indexOf($scope.booking_models, function(b) {
+                return b.id === id;
+              });
+              $scope.booking_models[i] = b;
+              return $scope.setRows();
+            }
           });
         });
       };
-      return getBookings = function($scope, member) {
+      $scope.cancel = function(id) {
+        var booking, modalInstance;
+        booking = _.find($scope.booking_models, function(b) {
+          return b.id === id;
+        });
+        modalInstance = $modal.open({
+          templateUrl: 'member_bookings_table_cancel_booking.html',
+          controller: function($scope, $modalInstance, booking) {
+            $scope.booking = booking;
+            $scope.booking.notify = true;
+            $scope.ok = function() {
+              return $modalInstance.close($scope.booking);
+            };
+            return $scope.close = function() {
+              return $modalInstance.dismiss();
+            };
+          },
+          scope: $scope,
+          resolve: {
+            booking: function() {
+              return booking;
+            }
+          }
+        });
+        return modalInstance.result.then(function(booking) {
+          var params;
+          $scope.loading = true;
+          params = {
+            notify: booking.notify
+          };
+          return booking.$post('cancel', params).then(function() {
+            var i;
+            i = _.findIndex($scope.booking_models, function(b) {
+              console.log(b);
+              return b.id === booking.id;
+            });
+            $scope.booking_models.splice(i, 1);
+            $scope.setRows();
+            return $scope.loading = false;
+          });
+        });
+      };
+      $scope.setRows = function() {
+        return $scope.bookings = _.map($scope.booking_models, function(booking) {
+          return {
+            id: booking.id,
+            date: moment(booking.datetime).format('YYYY-MM-DD'),
+            datetime: moment(booking.datetime).format('ddd DD MMM YY HH:mm'),
+            details: booking.full_describe
+          };
+        });
+      };
+      getBookings = function($scope, member) {
         var params;
         params = {
-          start_date: moment().format('YYYY-MM-DD')
+          start_date: $scope.startDate.format('YYYY-MM-DD'),
+          end_date: $scope.endDate ? $scope.endDate.format('YYYY-MM-DD') : void 0
         };
         return MemberBookingService.query(member, params).then(function(bookings) {
           $scope.booking_models = bookings;
-          $scope.bookings = _.map(bookings, function(booking) {
-            return _.pick(booking, 'id', 'full_describe', 'describe');
-          });
+          $scope.setRows();
           return $scope.loading = false;
         }, function(err) {
           $log.error(err.data);
           return $scope.loading = false;
         });
       };
-    };
-    link = function(scope, element, attrs) {
-      var base, base1;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+      $scope.startDate || ($scope.startDate = moment());
+      $scope.orderBy || ($scope.orderBy = 'datetime');
+      $scope.now = moment().format('YYYY-MM-DD');
+      if ($scope.member) {
+        return getBookings($scope, $scope.member);
+      }
     };
     return {
-      link: link,
       controller: controller,
       templateUrl: 'member_bookings_table.html',
       scope: {
         apiUrl: '@',
         fields: '=?',
-        member: '='
+        member: '=',
+        startDate: '=?',
+        endDate: '=?'
       }
     };
   });
@@ -481,11 +542,19 @@
         $scope.loading = true;
         $scope.$watch('member', function(member) {
           if (member != null) {
-            return member.$get('edit_member').then(function(member_schema) {
-              $scope.form = member_schema.form;
-              $scope.schema = member_schema.schema;
-              return $scope.loading = false;
-            });
+            if (member.$has('edit_member')) {
+              return member.$get('edit_member').then(function(member_schema) {
+                $scope.form = member_schema.form;
+                $scope.schema = member_schema.schema;
+                return $scope.loading = false;
+              });
+            } else if (member.$has('edit')) {
+              return member.$get('edit').then(function(member_schema) {
+                $scope.form = member_schema.form;
+                $scope.schema = member_schema.schema;
+                return $scope.loading = false;
+              });
+            }
           }
         });
         return $scope.submit = function(form) {
@@ -794,6 +863,26 @@
 }).call(this);
 
 (function() {
+  angular.module('BBMember').directive('bbMemberPurchaseItems', function($rootScope) {
+    return {
+      scope: true,
+      link: function(scope, element, attrs) {
+        var getItems;
+        getItems = function() {
+          return scope.purchase.getItems().then(function(items) {
+            return scope.items = items;
+          });
+        };
+        return scope.$watch('purchase', function() {
+          return getItems();
+        });
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
   angular.module('BBMember').directive('bbMemberPurchases', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_purchases.html',
@@ -814,26 +903,6 @@
               return PaginationService.update(scope.pagination, purchases.length);
             });
           }
-        });
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember').directive('bbMemberPurchaseItems', function($rootScope) {
-    return {
-      scope: true,
-      link: function(scope, element, attrs) {
-        var getItems;
-        getItems = function() {
-          return scope.purchase.getItems().then(function(items) {
-            return scope.items = items;
-          });
-        };
-        return scope.$watch('purchase', function() {
-          return getItems();
         });
       }
     };
@@ -1155,9 +1224,25 @@
       templateUrl: "wallet_purchase_bands.html",
       controller: "Wallet",
       require: '^?bbWallet',
-      link: function(scope, attr, elem) {
+      link: function(scope, attr, elem, ctrl) {
+        scope.member = scope.$eval(attr.member);
+        if ($rootScope.member) {
+          scope.member || (scope.member = $rootScope.member);
+        }
         return $rootScope.connection_started.then(function() {
-          return scope.getWalletPurchaseBandsForWallet(scope.wallet);
+          var deregisterWatch;
+          if (ctrl) {
+            return deregisterWatch = scope.$watch('wallet', function() {
+              if (scope.wallet) {
+                scope.getWalletPurchaseBandsForWallet(scope.wallet);
+                return deregisterWatch();
+              }
+            });
+          } else {
+            return scope.getWalletForMember(scope.member).then(function() {
+              return scope.getWalletPurchaseBandsForWallet(scope.wallet);
+            });
+          }
         });
       }
     };
