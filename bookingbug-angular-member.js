@@ -376,20 +376,12 @@
 
 (function() {
   angular.module('BBMember').directive('memberBookings', function($rootScope) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-    };
     return {
-      link: link,
       templateUrl: 'member_bookings_tabs.html',
       scope: {
-        apiUrl: '@',
         member: '='
-      }
+      },
+      link: function(scope, element, attrs) {}
     };
   });
 
@@ -793,15 +785,11 @@
     return {
       templateUrl: 'member_past_bookings.html',
       scope: {
-        apiUrl: '@',
         member: '='
       },
       controller: 'MemberBookings',
       link: function(scope, element, attrs) {
-        var base, base1, getBookings;
-        $rootScope.bb || ($rootScope.bb = {});
-        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        var getBookings;
         scope.pagination = PaginationService.initialise({
           page_size: 10,
           max_size: 5
@@ -830,15 +818,11 @@
     return {
       templateUrl: 'member_pre_paid_bookings.html',
       scope: {
-        apiUrl: '@',
         member: '='
       },
       controller: 'MemberBookings',
       link: function(scope, element, attrs) {
-        var base, base1, getBookings;
-        $rootScope.bb || ($rootScope.bb = {});
-        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        var getBookings;
         scope.pagination = PaginationService.initialise({
           page_size: 10,
           max_size: 5
@@ -883,26 +867,6 @@
               return PaginationService.update(scope.pagination, purchases.length);
             });
           }
-        });
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember').directive('bbMemberPurchaseItems', function($rootScope) {
-    return {
-      scope: true,
-      link: function(scope, element, attrs) {
-        var getItems;
-        getItems = function() {
-          return scope.purchase.getItems().then(function(items) {
-            return scope.items = items;
-          });
-        };
-        return scope.$watch('purchase', function() {
-          return getItems();
         });
       }
     };
@@ -958,15 +922,11 @@
     return {
       templateUrl: 'member_upcoming_bookings.html',
       scope: {
-        apiUrl: '@',
         member: '='
       },
       controller: 'MemberBookings',
       link: function(scope, element, attrs) {
-        var base, base1, getBookings;
-        $rootScope.bb || ($rootScope.bb = {});
-        (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        var getBookings;
         scope.pagination = PaginationService.initialise({
           page_size: 10,
           max_size: 5
@@ -1401,69 +1361,6 @@
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module("BB.Models").factory("Member.PurchaseModel", function(BBModel, BaseModel, $q) {
-    var Member_Purchase;
-    return Member_Purchase = (function(superClass) {
-      extend(Member_Purchase, superClass);
-
-      function Member_Purchase(data) {
-        Member_Purchase.__super__.constructor.call(this, data);
-        this.created_at = moment.parseZone(this.created_at);
-        if (this.time_zone) {
-          this.created_at.tz(this.time_zone);
-        }
-      }
-
-      Member_Purchase.prototype.getItems = function() {
-        var deferred;
-        deferred = $q.defer();
-        this._data.$get('purchase_items').then(function(items) {
-          var item;
-          this.items = (function() {
-            var i, len, results;
-            results = [];
-            for (i = 0, len = items.length; i < len; i++) {
-              item = items[i];
-              results.push(new BBModel.Member.PurchaseItem(item));
-            }
-            return results;
-          })();
-          return deferred.resolve(this.items);
-        });
-        return deferred.promise;
-      };
-
-      return Member_Purchase;
-
-    })(BaseModel);
-  });
-
-}).call(this);
-
-(function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  angular.module("BB.Models").factory("Member.PurchaseItemModel", function(BBModel, BaseModel) {
-    var Member_PurchaseItem;
-    return Member_PurchaseItem = (function(superClass) {
-      extend(Member_PurchaseItem, superClass);
-
-      function Member_PurchaseItem(data) {
-        Member_PurchaseItem.__super__.constructor.call(this, data);
-      }
-
-      return Member_PurchaseItem;
-
-    })(BaseModel);
-  });
-
-}).call(this);
-
-(function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
   angular.module("BB.Models").factory("Member.WalletModel", function(BBModel, BaseModel) {
     var Member_Wallet;
     return Member_Wallet = (function(superClass) {
@@ -1524,7 +1421,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BB.Services').factory("MemberBookingService", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
+  angular.module('BBMember.Services').factory("MemberBookingService", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
     return {
       query: function(member, params) {
         var deferred;
@@ -1669,7 +1566,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BB.Services').factory("MemberService", function($q, halClient, $rootScope, BBModel) {
+  angular.module('BBMember.Services').factory("MemberService", function($q, halClient, $rootScope, BBModel) {
     return {
       refresh: function(member) {
         var deferred;
@@ -1732,7 +1629,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BB.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
+  angular.module('BBMember.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
     return {
       query: function(member, params) {
         var deferred;
@@ -1783,7 +1680,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BB.Services').factory("MemberPurchaseService", function($q, $rootScope, BBModel) {
+  angular.module('BBMember.Services').factory("MemberPurchaseService", function($q, $rootScope, BBModel) {
     return {
       query: function(member, params) {
         var deferred;
@@ -1802,7 +1699,7 @@
                   results = [];
                   for (i = 0, len = purchases.length; i < len; i++) {
                     purchase = purchases[i];
-                    results.push(new BBModel.Member.Purchase(purchase));
+                    results.push(new BBModel.PurchaseTotal(purchase));
                   }
                   return results;
                 })();
@@ -1823,7 +1720,7 @@
 }).call(this);
 
 (function() {
-  angular.module("BB.Services").factory("WalletService", function($q, BBModel) {
+  angular.module("BBMember.Services").factory("WalletService", function($q, BBModel) {
     return {
       getWalletForMember: function(member, params) {
         var deferred;
