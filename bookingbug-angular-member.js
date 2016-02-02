@@ -27,7 +27,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService) {
+  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService, $rootScope) {
     var getBookings, updateBookings;
     $scope.loading = true;
     $scope.getUpcomingBookings = function() {
