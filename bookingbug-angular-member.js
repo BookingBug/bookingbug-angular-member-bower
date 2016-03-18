@@ -472,7 +472,7 @@
           return {
             id: booking.id,
             date: moment(booking.datetime).format('YYYY-MM-DD'),
-            datetime: moment(booking.datetime).format('LLLL'),
+            datetime: moment(booking.datetime).format('ddd DD MMM YY HH:mm'),
             details: booking.full_describe
           };
         });
