@@ -7,9 +7,7 @@
   });
 
   angular.module('BBMember').run(function() {
-    return TrNgGrid.defaultColumnOptions = {
-      enableFiltering: false
-    };
+    return TrNgGrid.defaultColumnOptions.enableFiltering = false;
   });
 
   angular.module('BBMember.Directives', []);
