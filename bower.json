@@ -1,6 +1,6 @@
 {
   "name": "bookingbug-angular-member",
-  "version": "0.0.338",
+  "version": "0.1.338",
   "homepage": "https://github.com/BookingBug/bookingbug-angular-member-bower",
   "authors": [
     "Glenn Shoosmith <glenn@bookingbug.com>",
@@ -20,7 +20,7 @@
     "tests"
   ],
   "dependencies": {
-    "bookingbug-angular-core": "0.0.338"
+    "bookingbug-angular-core": "0.1.338"
   },
   "resolutions": {
     "angular": "1.2.28",
