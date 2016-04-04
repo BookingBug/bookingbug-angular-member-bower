@@ -520,7 +520,9 @@
       template: "<form sf-schema=\"schema\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(member)\" ng-hide=\"loading\"></form>",
       scope: {
         apiUrl: '@',
-        member: '='
+        member: '=',
+        onSuccessSave: '=',
+        onFailSave: '='
       },
       link: function(scope, element, attrs) {
         var base, base1;
@@ -551,10 +553,16 @@
           $scope.loading = true;
           return $scope.member.$put('self', {}, form).then(function(member) {
             $scope.loading = false;
-            return AlertService.raise('UPDATE_SUCCESS');
+            AlertService.raise('UPDATE_SUCCESS');
+            if (typeof $scope.onSuccessSave === 'function') {
+              return $scope.onSuccessSave();
+            }
           }, function(err) {
             $scope.loading = false;
-            return AlertService.raise('UPDATE_FAILED');
+            AlertService.raise('UPDATE_FAILED');
+            if (typeof $scope.onFailSave === 'function') {
+              return $scope.onFailSave();
+            }
           });
         };
       }
