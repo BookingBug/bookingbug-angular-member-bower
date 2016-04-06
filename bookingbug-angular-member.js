@@ -882,47 +882,36 @@
 
 (function() {
   angular.module('BBMember').directive('memberSsoLogin', function($rootScope, LoginService, $sniffer, $timeout, QueryStringService) {
-    var link;
-    link = function(scope, element, attrs) {
-      var base, base1, data, options;
-      $rootScope.bb || ($rootScope.bb = {});
-      (base = $rootScope.bb).api_url || (base.api_url = scope.apiUrl);
-      (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
-      scope.qs = QueryStringService;
-      scope.member = null;
-      options = {
-        root: $rootScope.bb.api_url,
-        company_id: scope.companyId
-      };
-      data = {};
-      if (scope.token) {
-        data.token = scope.token;
-      }
-      if (scope.qs) {
-        data.token || (data.token = scope.qs('sso_token'));
-      }
-      if ($sniffer.msie && $sniffer.msie < 10 && $rootScope.iframe_proxy_ready === false) {
-        return $timeout(function() {
+    return {
+      scope: {
+        token: '@memberSsoLogin',
+        company_id: '@companyId'
+      },
+      transclude: true,
+      template: "<div ng-if='member' ng-transclude></div>",
+      link: function(scope, element, attrs) {
+        var data, options;
+        options = {
+          root: $rootScope.bb.api_url,
+          company_id: scope.company_id
+        };
+        data = {};
+        if (scope.token) {
+          data.token = scope.token;
+        }
+        data.token || (data.token = QueryStringService('sso_token'));
+        if ($sniffer.msie && $sniffer.msie < 10 && $rootScope.iframe_proxy_ready === false) {
+          return $timeout(function() {
+            return LoginService.ssoLogin(options, data).then(function(member) {
+              return scope.member = member;
+            });
+          }, 2000);
+        } else {
           return LoginService.ssoLogin(options, data).then(function(member) {
             return scope.member = member;
           });
-        }, 2000);
-      } else {
-        return LoginService.ssoLogin(options, data).then(function(member) {
-          return scope.member = member;
-        });
+        }
       }
-    };
-    return {
-      link: link,
-      scope: {
-        token: '@memberSsoLogin',
-        companyId: '@',
-        apiUrl: '@',
-        member: '='
-      },
-      transclude: true,
-      template: "<div ng-if='member' ng-transclude></div>"
     };
   });
 
