@@ -514,15 +514,34 @@
 
 }).call(this);
 
+
+/*
+* @ngdoc directive
+* @name BBMember.directive:memberForm
+* @scope
+* @restrict E
+*
+* @description
+* Member form, validates & submits a form that represents a member/client
+*
+* @param {string}    apiUrl              Expexts to be bled through the scope (MUST FIX)
+* @param {object}    member              Member object
+* @param {function}  onSuccessSave       On save success callback
+* @param {function}  onFailSave          On save fail callback
+* @param {function}  onValidationError   On validation fail callback
+*
+ */
+
 (function() {
   angular.module('BBMember').directive('memberForm', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, AlertService) {
     return {
-      template: "<form sf-schema=\"schema\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(member)\" ng-hide=\"loading\"></form>",
+      template: "<form sf-schema=\"schema\" name=\"memberForm\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(memberForm, member)\" ng-hide=\"loading\"></form>",
       scope: {
         apiUrl: '@',
         member: '=',
         onSuccessSave: '=',
-        onFailSave: '='
+        onFailSave: '=',
+        onValidationError: '='
       },
       link: function(scope, element, attrs) {
         var base, base1;
@@ -549,21 +568,28 @@
             }
           }
         });
-        return $scope.submit = function(form) {
-          $scope.loading = true;
-          return $scope.member.$put('self', {}, form).then(function(member) {
-            $scope.loading = false;
-            AlertService.raise('UPDATE_SUCCESS');
-            if (typeof $scope.onSuccessSave === 'function') {
-              return $scope.onSuccessSave();
+        return $scope.submit = function(form, data) {
+          $scope.$broadcast('schemaFormValidate');
+          if (form.$valid) {
+            $scope.loading = true;
+            return $scope.member.$put('self', {}, data).then(function(member) {
+              $scope.loading = false;
+              AlertService.raise('UPDATE_SUCCESS');
+              if (typeof $scope.onSuccessSave === 'function') {
+                return $scope.onSuccessSave();
+              }
+            }, function(err) {
+              $scope.loading = false;
+              AlertService.raise('UPDATE_FAILED');
+              if (typeof $scope.onFailSave === 'function') {
+                return $scope.onFailSave();
+              }
+            });
+          } else {
+            if (typeof $scope.onValidationError === 'function') {
+              return $scope.onValidationError();
             }
-          }, function(err) {
-            $scope.loading = false;
-            AlertService.raise('UPDATE_FAILED');
-            if (typeof $scope.onFailSave === 'function') {
-              return $scope.onFailSave();
-            }
-          });
+          }
         };
       }
     };
