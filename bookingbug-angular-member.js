@@ -869,6 +869,11 @@
             return getBookings();
           }
         });
+        scope.$on("booking:cancelled", function(event) {
+          return scope.getPrePaidBookings({}).then(function(pre_paid_bookings) {
+            return PaginationService.update(scope.pagination, pre_paid_bookings.length);
+          });
+        });
         return $rootScope.connection_started.then(function() {
           return getBookings();
         });
@@ -1655,6 +1660,8 @@
       query: function(member, params) {
         var deferred;
         deferred = $q.defer();
+        params || (params = {});
+        params.no_cache = true;
         if (!member.$has('pre_paid_bookings')) {
           deferred.reject("member does not have pre paid bookings");
         } else {
