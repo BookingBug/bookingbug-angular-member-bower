@@ -391,7 +391,7 @@
     controller = function($scope, $modal) {
       var getBookings;
       $scope.loading = true;
-      $scope.fields || ($scope.fields = ['datetime', 'details']);
+      $scope.fields || ($scope.fields = ['date', 'details']);
       $scope.$watch('member', function(member) {
         if (member != null) {
           return getBookings($scope, member);
@@ -471,7 +471,7 @@
         return $scope.bookings = _.map($scope.booking_models, function(booking) {
           return {
             id: booking.id,
-            date: moment(booking.datetime).format('YYYY-MM-DD'),
+            date: moment(booking.datetime).format('x'),
             datetime: moment(booking.datetime).format('ddd DD MMM YY HH:mm'),
             details: booking.full_describe
           };
