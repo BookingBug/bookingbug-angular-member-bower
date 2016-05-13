@@ -391,7 +391,7 @@
     controller = function($scope, $modal) {
       var getBookings;
       $scope.loading = true;
-      $scope.fields || ($scope.fields = ['date', 'details']);
+      $scope.fields || ($scope.fields = ['date_order', 'details']);
       $scope.$watch('member', function(member) {
         if (member != null) {
           return getBookings($scope, member);
@@ -471,7 +471,8 @@
         return $scope.bookings = _.map($scope.booking_models, function(booking) {
           return {
             id: booking.id,
-            date: moment(booking.datetime).format('x'),
+            date: moment(booking.datetime).format('YYYY-MM-DD'),
+            date_order: moment(booking.datetime).format('x'),
             datetime: moment(booking.datetime).format('ddd DD MMM YY HH:mm'),
             details: booking.full_describe
           };
@@ -493,7 +494,10 @@
         });
       };
       $scope.startDate || ($scope.startDate = moment());
-      $scope.orderBy || ($scope.orderBy = 'datetime');
+      $scope.orderBy = $scope.defaultOrder;
+      if ($scope.orderBy == null) {
+        $scope.orderBy = 'date_order';
+      }
       $scope.now = moment().format('YYYY-MM-DD');
       if ($scope.member) {
         return getBookings($scope, $scope.member);
@@ -507,7 +511,8 @@
         fields: '=?',
         member: '=',
         startDate: '=?',
-        endDate: '=?'
+        endDate: '=?',
+        defaultOrder: '=?'
       }
     };
   });
