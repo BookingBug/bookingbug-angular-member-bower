@@ -473,7 +473,7 @@
             id: booking.id,
             date: moment(booking.datetime).format('YYYY-MM-DD'),
             date_order: moment(booking.datetime).format('x'),
-            datetime: moment(booking.datetime).format('ddd DD MMM YY HH:mm'),
+            datetime: moment(booking.datetime),
             details: booking.full_describe
           };
         });
