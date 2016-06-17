@@ -1,10 +1,14 @@
 {
   "name": "bookingbug-angular-member",
 <<<<<<< HEAD
+<<<<<<< HEAD
   "version": "1.1.19",
 =======
   "version": "1.1.25",
 >>>>>>> fb50fc47de195f9f092bdb56223ff78239453cde
+=======
+  "version": "1.1.37",
+>>>>>>> 482c7ebed8237e2d0142effe382b1439e13dd8fc
   "homepage": "https://github.com/BookingBug/bookingbug-angular-member-bower",
   "authors": [
     "Glenn Shoosmith <glenn@bookingbug.com>",
@@ -25,10 +29,14 @@
   ],
   "dependencies": {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "bookingbug-angular-core": "1.1.19"
 =======
     "bookingbug-angular-core": "1.1.25"
 >>>>>>> fb50fc47de195f9f092bdb56223ff78239453cde
+=======
+    "bookingbug-angular-core": "1.1.37"
+>>>>>>> 482c7ebed8237e2d0142effe382b1439e13dd8fc
   },
   "resolutions": {
     "angular": "1.2.28",
