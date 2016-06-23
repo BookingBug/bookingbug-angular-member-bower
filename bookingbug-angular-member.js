@@ -373,625 +373,6 @@
 }).call(this);
 
 (function() {
-  'use strict';
-  var bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  angular.module('BB.Models').factory("Member.BookingModel", function($q, $window, BBModel, BaseModel, $bbug) {
-    var Member_Booking;
-    return Member_Booking = (function(superClass) {
-      extend(Member_Booking, superClass);
-
-      function Member_Booking(data) {
-        this.getMemberPromise = bind(this.getMemberPromise, this);
-        Member_Booking.__super__.constructor.call(this, data);
-        this.datetime = moment.parseZone(this.datetime);
-        if (this.time_zone) {
-          this.datetime.tz(this.time_zone);
-        }
-        this.end_datetime = moment.parseZone(this.end_datetime);
-        if (this.time_zone) {
-          this.end_datetime.tz(this.time_zone);
-        }
-        this.min_cancellation_time = moment(this.min_cancellation_time);
-        this.min_cancellation_hours = this.datetime.diff(this.min_cancellation_time, 'hours');
-      }
-
-      Member_Booking.prototype.getGroup = function() {
-        if (this.group) {
-          return this.group;
-        }
-        if (this._data.$has('event_groups')) {
-          return this._data.$get('event_groups').then((function(_this) {
-            return function(group) {
-              _this.group = group;
-              return _this.group;
-            };
-          })(this));
-        }
-      };
-
-      Member_Booking.prototype.getColour = function() {
-        if (this.getGroup()) {
-          return this.getGroup().colour;
-        } else {
-          return "#FFFFFF";
-        }
-      };
-
-      Member_Booking.prototype.getCompany = function() {
-        if (this.company) {
-          return this.company;
-        }
-        if (this.$has('company')) {
-          return this._data.$get('company').then((function(_this) {
-            return function(company) {
-              _this.company = new BBModel.Company(company);
-              return _this.company;
-            };
-          })(this));
-        }
-      };
-
-      Member_Booking.prototype.getAnswers = function() {
-        var defer;
-        defer = $q.defer();
-        if (this.answers) {
-          defer.resolve(this.answers);
-        }
-        if (this._data.$has('answers')) {
-          this._data.$get('answers').then((function(_this) {
-            return function(answers) {
-              var a;
-              _this.answers = (function() {
-                var i, len, results;
-                results = [];
-                for (i = 0, len = answers.length; i < len; i++) {
-                  a = answers[i];
-                  results.push(new BBModel.Answer(a));
-                }
-                return results;
-              })();
-              return defer.resolve(_this.answers);
-            };
-          })(this));
-        } else {
-          defer.resolve([]);
-        }
-        return defer.promise;
-      };
-
-      Member_Booking.prototype.getMemberPromise = function() {
-        var defer;
-        defer = $q.defer();
-        if (this.member) {
-          defer.resolve(this.member);
-        }
-        if (this._data.$has('member')) {
-          this._data.$get('member').then((function(_this) {
-            return function(member) {
-              _this.member = new BBModel.Member.Member(member);
-              return defer.resolve(_this.member);
-            };
-          })(this));
-        }
-        return defer.promise;
-      };
-
-      Member_Booking.prototype.canCancel = function() {
-        return moment(this.min_cancellation_time).isAfter(moment());
-      };
-
-      Member_Booking.prototype.canMove = function() {
-        return this.canCancel();
-      };
-
-      return Member_Booking;
-
-    })(BaseModel);
-  });
-
-}).call(this);
-
-(function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  angular.module('BB.Models').factory("Member.MemberModel", function($q, BBModel, BaseModel, ClientModel) {
-    var Member_Member;
-    return Member_Member = (function(superClass) {
-      extend(Member_Member, superClass);
-
-      function Member_Member() {
-        return Member_Member.__super__.constructor.apply(this, arguments);
-      }
-
-      return Member_Member;
-
-    })(ClientModel);
-  });
-
-}).call(this);
-
-(function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  angular.module("BB.Models").factory("Member.WalletModel", function(BBModel, BaseModel) {
-    var Member_Wallet;
-    return Member_Wallet = (function(superClass) {
-      extend(Member_Wallet, superClass);
-
-      function Member_Wallet(data) {
-        Member_Wallet.__super__.constructor.call(this, data);
-      }
-
-      return Member_Wallet;
-
-    })(BaseModel);
-  });
-
-}).call(this);
-
-(function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  angular.module("BB.Models").factory("Member.WalletLogModel", function($q, BBModel, BaseModel) {
-    var Member_WalletLog;
-    return Member_WalletLog = (function(superClass) {
-      extend(Member_WalletLog, superClass);
-
-      function Member_WalletLog(data) {
-        Member_WalletLog.__super__.constructor.call(this, data);
-        this.created_at = moment(this.created_at);
-        this.payment_amount = parseFloat(this.amount) * 100;
-        this.new_wallet_amount = parseFloat(this.new_wallet_amount) * 100;
-      }
-
-      return Member_WalletLog;
-
-    })(BaseModel);
-  });
-
-}).call(this);
-
-(function() {
-  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    hasProp = {}.hasOwnProperty;
-
-  angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function(BBModel, BaseModel) {
-    var Member_WalletPurchaseBand;
-    return Member_WalletPurchaseBand = (function(superClass) {
-      extend(Member_WalletPurchaseBand, superClass);
-
-      function Member_WalletPurchaseBand(data) {
-        Member_WalletPurchaseBand.__super__.constructor.call(this, data);
-      }
-
-      return Member_WalletPurchaseBand;
-
-    })(BaseModel);
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember.Services').factory("MemberBookingService", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
-    return {
-      query: function(member, params) {
-        var deferred;
-        deferred = $q.defer();
-        if (!member.$has('bookings')) {
-          deferred.reject("member does not have bookings");
-        } else {
-          member.$get('bookings', params).then((function(_this) {
-            return function(bookings) {
-              var booking;
-              if (angular.isArray(bookings)) {
-                bookings = (function() {
-                  var i, len, results;
-                  results = [];
-                  for (i = 0, len = bookings.length; i < len; i++) {
-                    booking = bookings[i];
-                    results.push(new BBModel.Member.Booking(booking));
-                  }
-                  return results;
-                })();
-                return deferred.resolve(bookings);
-              } else {
-                return bookings.$get('bookings', params).then(function(bookings) {
-                  bookings = (function() {
-                    var i, len, results;
-                    results = [];
-                    for (i = 0, len = bookings.length; i < len; i++) {
-                      booking = bookings[i];
-                      results.push(new BBModel.Member.Booking(booking));
-                    }
-                    return results;
-                  })();
-                  return deferred.resolve(bookings);
-                }, function(err) {
-                  return deferred.reject(err);
-                });
-              }
-            };
-          })(this), function(err) {
-            return deferred.reject(err);
-          });
-        }
-        return deferred.promise;
-      },
-      cancel: function(member, booking) {
-        var deferred;
-        deferred = $q.defer();
-        booking.$del('self').then((function(_this) {
-          return function(b) {
-            booking.deleted = true;
-            b = new BBModel.Member.Booking(b);
-            MemberService.refresh(member).then(function(member) {
-              return member = member;
-            }, function(err) {});
-            return deferred.resolve(b);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            return deferred.reject(err);
-          };
-        })(this));
-        return deferred.promise;
-      },
-      update: function(booking) {
-        var deferred;
-        deferred = $q.defer();
-        $rootScope.member.flushBookings();
-        booking.$put('self', {}, booking).then((function(_this) {
-          return function(booking) {
-            var book;
-            book = new BBModel.Member.Booking(booking);
-            SpaceCollections.checkItems(book);
-            return deferred.resolve(book);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            _.each(booking, function(value, key, booking) {
-              if (key !== 'data' && key !== 'self') {
-                return booking[key] = booking.data[key];
-              }
-            });
-            return deferred.reject(err, new BBModel.Member.Booking(booking));
-          };
-        })(this));
-        return deferred.promise;
-      },
-      flush: function(member, params) {
-        if (member.$has('bookings')) {
-          return member.$flush('bookings', params);
-        }
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel, $sessionStorage) {
-    return {
-      login: function(form, options) {
-        var defer, url;
-        defer = $q.defer();
-        url = $rootScope.bb.api_url + "/api/v1/login";
-        if (options.company_id != null) {
-          url = url + "/member/" + options.company_id;
-        }
-        halClient.$post(url, options, form).then(function(login) {
-          if (login.$has('member')) {
-            return login.$get('member').then(function(member) {
-              var auth_token;
-              member = new BBModel.Member.Member(member);
-              auth_token = member.getOption('auth_token');
-              $sessionStorage.setItem("login", member.$toStore());
-              $sessionStorage.setItem("auth_token", auth_token);
-              return defer.resolve(member);
-            });
-          } else if (login.$has('members')) {
-            return defer.resolve(login);
-          } else {
-            return defer.reject("No member account for login");
-          }
-        }, (function(_this) {
-          return function(err) {
-            var login;
-            if (err.status === 400) {
-              login = halClient.$parse(err.data);
-              if (login.$has('members')) {
-                return defer.resolve(login);
-              } else {
-                return defer.reject(err);
-              }
-            } else {
-              return defer.reject(err);
-            }
-          };
-        })(this));
-        return defer.promise;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember.Services').factory("MemberService", function($q, halClient, $rootScope, BBModel) {
-    return {
-      refresh: function(member) {
-        var deferred;
-        deferred = $q.defer();
-        member.$flush('self');
-        member.$get('self').then((function(_this) {
-          return function(member) {
-            member = new BBModel.Member.Member(member);
-            return deferred.resolve(member);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            return deferred.reject(err);
-          };
-        })(this));
-        return deferred.promise;
-      },
-      current: function() {
-        var callback, deferred;
-        deferred = $q.defer();
-        callback = function() {
-          return deferred.resolve($rootScope.member);
-        };
-        setTimeout(callback, 200);
-        return deferred.promise;
-      },
-      updateMember: function(member, params) {
-        var deferred;
-        deferred = $q.defer();
-        member.$put('self', {}, params).then((function(_this) {
-          return function(member) {
-            member = new BBModel.Member.Member(member);
-            return deferred.resolve(member);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            return deferred.reject(err);
-          };
-        })(this));
-        return deferred.promise;
-      },
-      sendWelcomeEmail: function(member, params) {
-        var deferred;
-        deferred = $q.defer();
-        member.$post('send_welcome_email', params).then((function(_this) {
-          return function(member) {
-            member = new BBModel.Member.Member(member);
-            return deferred.resolve(member);
-          };
-        })(this), (function(_this) {
-          return function(err) {
-            return deferred.reject(err);
-          };
-        })(this));
-        return deferred.promise;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
-    return {
-      query: function(member, params) {
-        var deferred;
-        deferred = $q.defer();
-        params || (params = {});
-        params.no_cache = true;
-        if (!member.$has('pre_paid_bookings')) {
-          deferred.reject("member does not have pre paid bookings");
-        } else {
-          member.$get('pre_paid_bookings', params).then((function(_this) {
-            return function(bookings) {
-              var booking;
-              if (angular.isArray(bookings)) {
-                bookings = (function() {
-                  var i, len, results;
-                  results = [];
-                  for (i = 0, len = bookings.length; i < len; i++) {
-                    booking = bookings[i];
-                    results.push(new BBModel.PrePaidBooking(booking));
-                  }
-                  return results;
-                })();
-                return deferred.resolve(bookings);
-              } else {
-                return bookings.$get('pre_paid_bookings', params).then(function(bookings) {
-                  bookings = (function() {
-                    var i, len, results;
-                    results = [];
-                    for (i = 0, len = bookings.length; i < len; i++) {
-                      booking = bookings[i];
-                      results.push(new BBModel.PrePaidBooking(booking));
-                    }
-                    return results;
-                  })();
-                  return deferred.resolve(bookings);
-                });
-              }
-            };
-          })(this), (function(_this) {
-            return function(err) {
-              return deferred.reject(err);
-            };
-          })(this));
-        }
-        return deferred.promise;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module('BBMember.Services').factory("MemberPurchaseService", function($q, $rootScope, BBModel) {
-    return {
-      query: function(member, params) {
-        var deferred;
-        params || (params = {});
-        params["no_cache"] = true;
-        deferred = $q.defer();
-        if (!member.$has('purchase_totals')) {
-          deferred.reject("member does not have any purchases");
-        } else {
-          member.$get('purchase_totals', params).then((function(_this) {
-            return function(purchases) {
-              return purchases.$get('purchase_totals', params).then(function(purchases) {
-                var purchase;
-                purchases = (function() {
-                  var i, len, results;
-                  results = [];
-                  for (i = 0, len = purchases.length; i < len; i++) {
-                    purchase = purchases[i];
-                    results.push(new BBModel.PurchaseTotal(purchase));
-                  }
-                  return results;
-                })();
-                return deferred.resolve(purchases);
-              }, function(err) {
-                return deferred.reject(err);
-              });
-            };
-          })(this), function(err) {
-            return deferred.reject(err);
-          });
-        }
-        return deferred.promise;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module("BBMember.Services").factory("WalletService", function($q, BBModel) {
-    return {
-      getWalletForMember: function(member, params) {
-        var deferred;
-        params || (params = {});
-        params["no_cache"] = true;
-        deferred = $q.defer();
-        if (!member.$has("wallet")) {
-          deferred.reject("Wallets are not turned on.");
-        } else {
-          member.$get("wallet", params).then(function(wallet) {
-            wallet = new BBModel.Member.Wallet(wallet);
-            return deferred.resolve(wallet);
-          }, function(err) {
-            return deferred.reject(err);
-          });
-        }
-        return deferred.promise;
-      },
-      getWalletLogs: function(wallet) {
-        var deferred, params;
-        params = {
-          no_cache: true
-        };
-        deferred = $q.defer();
-        if (!wallet.$has('logs')) {
-          deferred.reject("No wallet transactions found");
-        } else {
-          wallet.$get('logs', params).then(function(resource) {
-            return resource.$get('logs').then(function(logs) {
-              var log;
-              logs = (function() {
-                var i, len, results;
-                results = [];
-                for (i = 0, len = logs.length; i < len; i++) {
-                  log = logs[i];
-                  results.push(new BBModel.Member.WalletLog(log));
-                }
-                return results;
-              })();
-              return deferred.resolve(logs);
-            });
-          }, (function(_this) {
-            return function(err) {
-              return deferred.reject(err);
-            };
-          })(this));
-        }
-        return deferred.promise;
-      },
-      getWalletPurchaseBandsForWallet: function(wallet) {
-        var deferred;
-        deferred = $q.defer();
-        if (!wallet.$has('purchase_bands')) {
-          deferred.reject("No Purchase Bands");
-        } else {
-          wallet.$get("purchase_bands", {}).then(function(resource) {
-            return resource.$get("purchase_bands").then(function(bands) {
-              var band;
-              bands = (function() {
-                var i, len, results;
-                results = [];
-                for (i = 0, len = bands.length; i < len; i++) {
-                  band = bands[i];
-                  results.push(new BBModel.Member.WalletPurchaseBand(band));
-                }
-                return results;
-              })();
-              return deferred.resolve(bands);
-            });
-          }, function(err) {
-            return deferred.reject(err);
-          });
-        }
-        return deferred.promise;
-      },
-      updateWalletForMember: function(member, params) {
-        var deferred;
-        deferred = $q.defer();
-        if (!member.$has("wallet")) {
-          deferred.reject("Wallets are not turned on.");
-        } else {
-          member.$put("wallet", {}, params).then(function(wallet) {
-            wallet = new BBModel.Member.Wallet(wallet);
-            return deferred.resolve(wallet);
-          }, function(err) {
-            return deferred.reject(err);
-          });
-        }
-        return deferred.promise;
-      },
-      createWalletForMember: function(member) {
-        var deferred, params;
-        deferred = $q.defer();
-        params = {};
-        if (!member.$has("wallet")) {
-          deferred.reject("Wallets are not turned on.");
-        } else {
-          member.$post("wallet", {}, params).then(function(wallet) {
-            wallet = new BBModel.Member.Wallet(wallet);
-            return deferred.resolve(wallet);
-          }, function(err) {
-            return deferred.reject(err);
-          });
-        }
-        return deferred.promise;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
   angular.module('BBMember').directive('memberBookings', function($rootScope) {
     return {
       templateUrl: 'member_bookings_tabs.html',
@@ -1157,9 +538,15 @@
  */
 
 (function() {
-  angular.module('BBMember').directive('memberForm', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, AlertService) {
+  angular.module('BBMember').directive('memberForm', function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, AlertService, PathSvc) {
     return {
-      template: "<form sf-schema=\"schema\" name=\"memberForm\" sf-form=\"form\" sf-model=\"member\"\n  ng-submit=\"submit(memberForm, member)\" ng-hide=\"loading\"></form>",
+      templateUrl: function(el, attrs) {
+        if (attrs.bbCustomMemberForm != null) {
+          return PathSvc.directivePartial("_member_form");
+        } else {
+          return PathSvc.directivePartial("_member_schema_form");
+        }
+      },
       scope: {
         apiUrl: '@',
         member: '=',
@@ -1171,7 +558,10 @@
         var base, base1;
         $rootScope.bb || ($rootScope.bb = {});
         (base = $rootScope.bb).api_url || (base.api_url = attrs.apiUrl);
-        return (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
+        if (attrs.bbCustomMemberForm != null) {
+          return scope.custom_member_form = true;
+        }
       },
       controller: function($scope) {
         $scope.loading = true;
@@ -1193,9 +583,17 @@
           }
         });
         return $scope.submit = function(form, data) {
+          var i, item, len, ref;
           $scope.$broadcast('schemaFormValidate');
           if (form.$valid) {
             $scope.loading = true;
+            if (!$scope.custom_member_form) {
+              ref = data.questions;
+              for (i = 0, len = ref.length; i < len; i++) {
+                item = ref[i];
+                item.answer = data.q[item.id].answer;
+              }
+            }
             return $scope.member.$put('self', {}, data).then(function(member) {
               $scope.loading = false;
               AlertService.raise('UPDATE_SUCCESS');
@@ -1859,6 +1257,625 @@
             });
           }
         });
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  'use strict';
+  var bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
+    extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module('BB.Models').factory("Member.BookingModel", function($q, $window, BBModel, BaseModel, $bbug) {
+    var Member_Booking;
+    return Member_Booking = (function(superClass) {
+      extend(Member_Booking, superClass);
+
+      function Member_Booking(data) {
+        this.getMemberPromise = bind(this.getMemberPromise, this);
+        Member_Booking.__super__.constructor.call(this, data);
+        this.datetime = moment.parseZone(this.datetime);
+        if (this.time_zone) {
+          this.datetime.tz(this.time_zone);
+        }
+        this.end_datetime = moment.parseZone(this.end_datetime);
+        if (this.time_zone) {
+          this.end_datetime.tz(this.time_zone);
+        }
+        this.min_cancellation_time = moment(this.min_cancellation_time);
+        this.min_cancellation_hours = this.datetime.diff(this.min_cancellation_time, 'hours');
+      }
+
+      Member_Booking.prototype.getGroup = function() {
+        if (this.group) {
+          return this.group;
+        }
+        if (this._data.$has('event_groups')) {
+          return this._data.$get('event_groups').then((function(_this) {
+            return function(group) {
+              _this.group = group;
+              return _this.group;
+            };
+          })(this));
+        }
+      };
+
+      Member_Booking.prototype.getColour = function() {
+        if (this.getGroup()) {
+          return this.getGroup().colour;
+        } else {
+          return "#FFFFFF";
+        }
+      };
+
+      Member_Booking.prototype.getCompany = function() {
+        if (this.company) {
+          return this.company;
+        }
+        if (this.$has('company')) {
+          return this._data.$get('company').then((function(_this) {
+            return function(company) {
+              _this.company = new BBModel.Company(company);
+              return _this.company;
+            };
+          })(this));
+        }
+      };
+
+      Member_Booking.prototype.getAnswers = function() {
+        var defer;
+        defer = $q.defer();
+        if (this.answers) {
+          defer.resolve(this.answers);
+        }
+        if (this._data.$has('answers')) {
+          this._data.$get('answers').then((function(_this) {
+            return function(answers) {
+              var a;
+              _this.answers = (function() {
+                var i, len, results;
+                results = [];
+                for (i = 0, len = answers.length; i < len; i++) {
+                  a = answers[i];
+                  results.push(new BBModel.Answer(a));
+                }
+                return results;
+              })();
+              return defer.resolve(_this.answers);
+            };
+          })(this));
+        } else {
+          defer.resolve([]);
+        }
+        return defer.promise;
+      };
+
+      Member_Booking.prototype.getMemberPromise = function() {
+        var defer;
+        defer = $q.defer();
+        if (this.member) {
+          defer.resolve(this.member);
+        }
+        if (this._data.$has('member')) {
+          this._data.$get('member').then((function(_this) {
+            return function(member) {
+              _this.member = new BBModel.Member.Member(member);
+              return defer.resolve(_this.member);
+            };
+          })(this));
+        }
+        return defer.promise;
+      };
+
+      Member_Booking.prototype.canCancel = function() {
+        return moment(this.min_cancellation_time).isAfter(moment());
+      };
+
+      Member_Booking.prototype.canMove = function() {
+        return this.canCancel();
+      };
+
+      return Member_Booking;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module('BB.Models').factory("Member.MemberModel", function($q, BBModel, BaseModel, ClientModel) {
+    var Member_Member;
+    return Member_Member = (function(superClass) {
+      extend(Member_Member, superClass);
+
+      function Member_Member() {
+        return Member_Member.__super__.constructor.apply(this, arguments);
+      }
+
+      return Member_Member;
+
+    })(ClientModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory("Member.WalletModel", function(BBModel, BaseModel) {
+    var Member_Wallet;
+    return Member_Wallet = (function(superClass) {
+      extend(Member_Wallet, superClass);
+
+      function Member_Wallet(data) {
+        Member_Wallet.__super__.constructor.call(this, data);
+      }
+
+      return Member_Wallet;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory("Member.WalletLogModel", function($q, BBModel, BaseModel) {
+    var Member_WalletLog;
+    return Member_WalletLog = (function(superClass) {
+      extend(Member_WalletLog, superClass);
+
+      function Member_WalletLog(data) {
+        Member_WalletLog.__super__.constructor.call(this, data);
+        this.created_at = moment(this.created_at);
+        this.payment_amount = parseFloat(this.amount) * 100;
+        this.new_wallet_amount = parseFloat(this.new_wallet_amount) * 100;
+      }
+
+      return Member_WalletLog;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function(BBModel, BaseModel) {
+    var Member_WalletPurchaseBand;
+    return Member_WalletPurchaseBand = (function(superClass) {
+      extend(Member_WalletPurchaseBand, superClass);
+
+      function Member_WalletPurchaseBand(data) {
+        Member_WalletPurchaseBand.__super__.constructor.call(this, data);
+      }
+
+      return Member_WalletPurchaseBand;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember.Services').factory("MemberBookingService", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
+    return {
+      query: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        if (!member.$has('bookings')) {
+          deferred.reject("member does not have bookings");
+        } else {
+          member.$get('bookings', params).then((function(_this) {
+            return function(bookings) {
+              var booking;
+              if (angular.isArray(bookings)) {
+                bookings = (function() {
+                  var i, len, results;
+                  results = [];
+                  for (i = 0, len = bookings.length; i < len; i++) {
+                    booking = bookings[i];
+                    results.push(new BBModel.Member.Booking(booking));
+                  }
+                  return results;
+                })();
+                return deferred.resolve(bookings);
+              } else {
+                return bookings.$get('bookings', params).then(function(bookings) {
+                  bookings = (function() {
+                    var i, len, results;
+                    results = [];
+                    for (i = 0, len = bookings.length; i < len; i++) {
+                      booking = bookings[i];
+                      results.push(new BBModel.Member.Booking(booking));
+                    }
+                    return results;
+                  })();
+                  return deferred.resolve(bookings);
+                }, function(err) {
+                  return deferred.reject(err);
+                });
+              }
+            };
+          })(this), function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
+      },
+      cancel: function(member, booking) {
+        var deferred;
+        deferred = $q.defer();
+        booking.$del('self').then((function(_this) {
+          return function(b) {
+            booking.deleted = true;
+            b = new BBModel.Member.Booking(b);
+            MemberService.refresh(member).then(function(member) {
+              return member = member;
+            }, function(err) {});
+            return deferred.resolve(b);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      },
+      update: function(booking) {
+        var deferred;
+        deferred = $q.defer();
+        $rootScope.member.flushBookings();
+        booking.$put('self', {}, booking).then((function(_this) {
+          return function(booking) {
+            var book;
+            book = new BBModel.Member.Booking(booking);
+            SpaceCollections.checkItems(book);
+            return deferred.resolve(book);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            _.each(booking, function(value, key, booking) {
+              if (key !== 'data' && key !== 'self') {
+                return booking[key] = booking.data[key];
+              }
+            });
+            return deferred.reject(err, new BBModel.Member.Booking(booking));
+          };
+        })(this));
+        return deferred.promise;
+      },
+      flush: function(member, params) {
+        if (member.$has('bookings')) {
+          return member.$flush('bookings', params);
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember.Services').factory("MemberLoginService", function($q, halClient, $rootScope, BBModel, $sessionStorage) {
+    return {
+      login: function(form, options) {
+        var defer, url;
+        defer = $q.defer();
+        url = $rootScope.bb.api_url + "/api/v1/login";
+        if (options.company_id != null) {
+          url = url + "/member/" + options.company_id;
+        }
+        halClient.$post(url, options, form).then(function(login) {
+          if (login.$has('member')) {
+            return login.$get('member').then(function(member) {
+              var auth_token;
+              member = new BBModel.Member.Member(member);
+              auth_token = member.getOption('auth_token');
+              $sessionStorage.setItem("login", member.$toStore());
+              $sessionStorage.setItem("auth_token", auth_token);
+              return defer.resolve(member);
+            });
+          } else if (login.$has('members')) {
+            return defer.resolve(login);
+          } else {
+            return defer.reject("No member account for login");
+          }
+        }, (function(_this) {
+          return function(err) {
+            var login;
+            if (err.status === 400) {
+              login = halClient.$parse(err.data);
+              if (login.$has('members')) {
+                return defer.resolve(login);
+              } else {
+                return defer.reject(err);
+              }
+            } else {
+              return defer.reject(err);
+            }
+          };
+        })(this));
+        return defer.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember.Services').factory("MemberService", function($q, halClient, $rootScope, BBModel) {
+    return {
+      refresh: function(member) {
+        var deferred;
+        deferred = $q.defer();
+        member.$flush('self');
+        member.$get('self').then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      },
+      current: function() {
+        var callback, deferred;
+        deferred = $q.defer();
+        callback = function() {
+          return deferred.resolve($rootScope.member);
+        };
+        setTimeout(callback, 200);
+        return deferred.promise;
+      },
+      updateMember: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        member.$put('self', {}, params).then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      },
+      sendWelcomeEmail: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        member.$post('send_welcome_email', params).then((function(_this) {
+          return function(member) {
+            member = new BBModel.Member.Member(member);
+            return deferred.resolve(member);
+          };
+        })(this), (function(_this) {
+          return function(err) {
+            return deferred.reject(err);
+          };
+        })(this));
+        return deferred.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
+    return {
+      query: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        params || (params = {});
+        params.no_cache = true;
+        if (!member.$has('pre_paid_bookings')) {
+          deferred.reject("member does not have pre paid bookings");
+        } else {
+          member.$get('pre_paid_bookings', params).then((function(_this) {
+            return function(bookings) {
+              var booking;
+              if (angular.isArray(bookings)) {
+                bookings = (function() {
+                  var i, len, results;
+                  results = [];
+                  for (i = 0, len = bookings.length; i < len; i++) {
+                    booking = bookings[i];
+                    results.push(new BBModel.PrePaidBooking(booking));
+                  }
+                  return results;
+                })();
+                return deferred.resolve(bookings);
+              } else {
+                return bookings.$get('pre_paid_bookings', params).then(function(bookings) {
+                  bookings = (function() {
+                    var i, len, results;
+                    results = [];
+                    for (i = 0, len = bookings.length; i < len; i++) {
+                      booking = bookings[i];
+                      results.push(new BBModel.PrePaidBooking(booking));
+                    }
+                    return results;
+                  })();
+                  return deferred.resolve(bookings);
+                });
+              }
+            };
+          })(this), (function(_this) {
+            return function(err) {
+              return deferred.reject(err);
+            };
+          })(this));
+        }
+        return deferred.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember.Services').factory("MemberPurchaseService", function($q, $rootScope, BBModel) {
+    return {
+      query: function(member, params) {
+        var deferred;
+        params || (params = {});
+        params["no_cache"] = true;
+        deferred = $q.defer();
+        if (!member.$has('purchase_totals')) {
+          deferred.reject("member does not have any purchases");
+        } else {
+          member.$get('purchase_totals', params).then((function(_this) {
+            return function(purchases) {
+              return purchases.$get('purchase_totals', params).then(function(purchases) {
+                var purchase;
+                purchases = (function() {
+                  var i, len, results;
+                  results = [];
+                  for (i = 0, len = purchases.length; i < len; i++) {
+                    purchase = purchases[i];
+                    results.push(new BBModel.PurchaseTotal(purchase));
+                  }
+                  return results;
+                })();
+                return deferred.resolve(purchases);
+              }, function(err) {
+                return deferred.reject(err);
+              });
+            };
+          })(this), function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module("BBMember.Services").factory("WalletService", function($q, BBModel) {
+    return {
+      getWalletForMember: function(member, params) {
+        var deferred;
+        params || (params = {});
+        params["no_cache"] = true;
+        deferred = $q.defer();
+        if (!member.$has("wallet")) {
+          deferred.reject("Wallets are not turned on.");
+        } else {
+          member.$get("wallet", params).then(function(wallet) {
+            wallet = new BBModel.Member.Wallet(wallet);
+            return deferred.resolve(wallet);
+          }, function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
+      },
+      getWalletLogs: function(wallet) {
+        var deferred, params;
+        params = {
+          no_cache: true
+        };
+        deferred = $q.defer();
+        if (!wallet.$has('logs')) {
+          deferred.reject("No wallet transactions found");
+        } else {
+          wallet.$get('logs', params).then(function(resource) {
+            return resource.$get('logs').then(function(logs) {
+              var log;
+              logs = (function() {
+                var i, len, results;
+                results = [];
+                for (i = 0, len = logs.length; i < len; i++) {
+                  log = logs[i];
+                  results.push(new BBModel.Member.WalletLog(log));
+                }
+                return results;
+              })();
+              return deferred.resolve(logs);
+            });
+          }, (function(_this) {
+            return function(err) {
+              return deferred.reject(err);
+            };
+          })(this));
+        }
+        return deferred.promise;
+      },
+      getWalletPurchaseBandsForWallet: function(wallet) {
+        var deferred;
+        deferred = $q.defer();
+        if (!wallet.$has('purchase_bands')) {
+          deferred.reject("No Purchase Bands");
+        } else {
+          wallet.$get("purchase_bands", {}).then(function(resource) {
+            return resource.$get("purchase_bands").then(function(bands) {
+              var band;
+              bands = (function() {
+                var i, len, results;
+                results = [];
+                for (i = 0, len = bands.length; i < len; i++) {
+                  band = bands[i];
+                  results.push(new BBModel.Member.WalletPurchaseBand(band));
+                }
+                return results;
+              })();
+              return deferred.resolve(bands);
+            });
+          }, function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
+      },
+      updateWalletForMember: function(member, params) {
+        var deferred;
+        deferred = $q.defer();
+        if (!member.$has("wallet")) {
+          deferred.reject("Wallets are not turned on.");
+        } else {
+          member.$put("wallet", {}, params).then(function(wallet) {
+            wallet = new BBModel.Member.Wallet(wallet);
+            return deferred.resolve(wallet);
+          }, function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
+      },
+      createWalletForMember: function(member) {
+        var deferred, params;
+        deferred = $q.defer();
+        params = {};
+        if (!member.$has("wallet")) {
+          deferred.reject("Wallets are not turned on.");
+        } else {
+          member.$post("wallet", {}, params).then(function(wallet) {
+            wallet = new BBModel.Member.Wallet(wallet);
+            return deferred.resolve(wallet);
+          }, function(err) {
+            return deferred.reject(err);
+          });
+        }
+        return deferred.promise;
       }
     };
   });
