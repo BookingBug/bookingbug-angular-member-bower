@@ -431,6 +431,44 @@
 }).call(this);
 
 (function() {
+  angular.module('BBMember').directive('bbMemberBooking', function() {
+    return {
+      templateUrl: '_member_booking.html',
+      scope: {
+        booking: '=bbMemberBooking'
+      },
+      require: ['^?bbMemberUpcomingBookings', '^?bbMemberPastBookings'],
+      link: function(scope, element, attrs, controllers) {
+        var member_booking_controller;
+        scope.actions = [];
+        member_booking_controller = controllers[0] ? controllers[0] : controllers[1];
+        if (scope.booking.on_waitlist && !scope.booking.datetime.isBefore(moment(), 'day')) {
+          scope.actions.push({
+            action: member_booking_controller.book,
+            label: 'Book',
+            translation_key: 'MEMBER_BOOKING_WAITLIST_ACCEPT',
+            disabled: !scope.booking.settings.sent_waitlist
+          });
+        }
+        scope.actions.push({
+          action: member_booking_controller.edit,
+          label: 'Details',
+          translation_key: 'MEMBER_BOOKING_EDIT'
+        });
+        if (!scope.booking.datetime.isBefore(moment(), 'day')) {
+          return scope.actions.push({
+            action: member_booking_controller.cancel,
+            label: 'Cancel',
+            translation_key: 'MEMBER_BOOKING_CANCEL'
+          });
+        }
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
   angular.module('BBMember').directive('memberBookings', function($rootScope) {
     return {
       templateUrl: 'member_bookings_tabs.html',
