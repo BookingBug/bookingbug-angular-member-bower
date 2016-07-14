@@ -558,7 +558,7 @@
       if ($scope.orderBy == null) {
         $scope.orderBy = 'date_order';
       }
-      $scope.now = moment().format('YYYY-MM-DD');
+      $scope.now = moment();
       if ($scope.member) {
         return getBookings($scope, $scope.member);
       }
