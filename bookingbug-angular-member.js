@@ -210,7 +210,7 @@
           url_root: $rootScope.bb.api_url,
           booking: booking
         };
-        PurchaseService.bookWaitlistItem(params).then(function(purchase_total) {
+        return PurchaseService.bookWaitlistItem(params).then(function(purchase_total) {
           if (purchase_total.due_now > 0) {
             if (purchase_total.$has('new_payment')) {
               return openPaymentModal(booking, purchase_total);
@@ -221,9 +221,9 @@
             return bookWaitlistSucces();
           }
         }, function(err) {
-          return AlertService.raise('NO_WAITLIST_SPACES_LEFT');
+          AlertService.raise('NO_WAITLIST_SPACES_LEFT');
+          return $scope.setLoaded($scope);
         });
-        return $scope.setLoaded($scope);
       }
     };
   });
