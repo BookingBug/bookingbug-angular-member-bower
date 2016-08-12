@@ -28,14 +28,17 @@
   angular.module('BBMember').controller('MemberBookings', ["$scope", "$modal", "$log", "MemberBookingService", "$q", "ModalForm", "MemberPrePaidBookingService", "$rootScope", "AlertService", "PurchaseService", function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService, $rootScope, AlertService, PurchaseService) {
     var bookWaitlistSucces, getBookings, openPaymentModal, updateBookings;
     $scope.getUpcomingBookings = function() {
-      var defer, params;
+      var defer, now, params;
       defer = $q.defer();
+      now = moment();
       params = {
-        start_date: moment().format('YYYY-MM-DD')
+        start_date: now.toISODate()
       };
-      getBookings(params).then(function(upcoming_bookings) {
-        $scope.upcoming_bookings = upcoming_bookings;
-        return defer.resolve(upcoming_bookings);
+      getBookings(params).then(function(results) {
+        $scope.upcoming_bookings = results.filter(function(result) {
+          return result.datetime.isAfter(now);
+        });
+        return defer.resolve($scope.upcoming_bookings);
       }, function(err) {
         return defer.reject([]);
       });
