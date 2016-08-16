@@ -2,9 +2,9 @@
   'use strict';
   angular.module('BBMember', ['BB', 'BBMember.Directives', 'BBMember.Services', 'BBMember.Filters', 'BBMember.Controllers', 'BBMember.Models', 'trNgGrid', 'pascalprecht.translate']);
 
-  angular.module('BBMember').config(["$logProvider", function($logProvider) {
+  angular.module('BBMember').config(function($logProvider) {
     return $logProvider.debugEnabled(true);
-  }]);
+  });
 
   angular.module('BBMember').run(function() {
     return TrNgGrid.defaultColumnOptions.enableFiltering = false;
@@ -14,19 +14,31 @@
 
   angular.module('BBMember.Filters', []);
 
-  angular.module('BBMember.Services', ['ngResource', 'ngSanitize', 'ngLocalData']);
-
-  angular.module('BBMember.Controllers', ['ngLocalData', 'ngSanitize']);
-
   angular.module('BBMember.Models', []);
+
+  angular.module('BBMember.Services', ['ngResource', 'ngSanitize']);
+
+  angular.module('BBMember.Controllers', ['ngSanitize']);
+
+  angular.module('BBMember').run(function($q, $injector, BBModel) {
+    var i, len, mfuncs, model, models;
+    models = ['Member', 'Booking', 'Wallet', 'WalletLog', 'Purchase', 'PurchaseItem', 'WalletPurchaseBand'];
+    mfuncs = {};
+    for (i = 0, len = models.length; i < len; i++) {
+      model = models[i];
+      mfuncs[model] = $injector.get("Member." + model + "Model");
+    }
+    return BBModel['Member'] = mfuncs;
+  });
 
   angular.module('BBMemberMockE2E', ['BBMember', 'BBAdminMockE2E']);
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').controller('MemberBookings', ["$scope", "$modal", "$log", "MemberBookingService", "$q", "ModalForm", "MemberPrePaidBookingService", "$rootScope", "AlertService", "PurchaseService", function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService, $rootScope, AlertService, PurchaseService) {
-    var bookWaitlistSucces, getBookings, openPaymentModal, updateBookings;
+  angular.module('BBMember').controller('MemberBookings', function($scope, $uibModal, $document, $log, $q, ModalForm, $rootScope, AlertService, PurchaseService, LoadingService) {
+    var bookWaitlistSucces, getBookings, loader, openPaymentModal, updateBookings;
+    loader = LoadingService.$loader($scope).notLoaded();
     $scope.getUpcomingBookings = function() {
       var defer, now, params;
       defer = $q.defer();
@@ -73,21 +85,21 @@
       params = {
         start_date: moment().format('YYYY-MM-DD')
       };
-      return MemberBookingService.flush($scope.member, params);
+      return $scope.member.$flush('bookings', params);
     };
     updateBookings = function() {
       return $scope.getUpcomingBookings();
     };
     getBookings = function(params) {
       var defer;
-      $scope.notLoaded($scope);
+      loader.notLoaded();
       defer = $q.defer();
-      MemberBookingService.query($scope.member, params).then(function(bookings) {
-        $scope.setLoaded($scope);
+      $scope.member.$getBookings(params).then(function(bookings) {
+        loader.setLoaded();
         return defer.resolve(bookings);
       }, function(err) {
         $log.error(err.data);
-        return $scope.setLoaded($scope);
+        return loader.setLoaded();
       });
       return defer.promise;
     };
@@ -99,7 +111,7 @@
       }
       $scope.upcoming_bookings.splice(index, 1);
       AlertService.raise('BOOKING_CANCELLED');
-      return MemberBookingService.cancel($scope.member, booking).then(function() {
+      return $scope.booking.$del('self').then(function() {
         $rootScope.$broadcast("booking:cancelled");
         if ($scope.removeBooking) {
           return $scope.removeBooking(booking);
@@ -112,7 +124,7 @@
     $scope.getPrePaidBookings = function(params) {
       var defer;
       defer = $q.defer();
-      MemberPrePaidBookingService.query($scope.member, params).then(function(bookings) {
+      $scope.member.$getPrePaidBookings(params).then(function(bookings) {
         $scope.pre_paid_bookings = bookings;
         return defer.resolve(bookings);
       }, function(err) {
@@ -127,34 +139,27 @@
     };
     openPaymentModal = function(booking, total) {
       var modalInstance;
-      modalInstance = $modal.open({
+      modalInstance = $uibModal.open({
+        appendTo: angular.element($document[0].getElementById('bb')),
         templateUrl: "booking_payment_modal.html",
         windowClass: "bbug",
         size: "lg",
-        controller: ["$scope", "$rootScope", "$modalInstance", "booking", "total", "notLoaded", "setLoaded", function($scope, $rootScope, $modalInstance, booking, total, notLoaded, setLoaded) {
+        controller: function($scope, $uibModalInstance, booking, total) {
           $scope.booking = booking;
           $scope.total = total;
-          $scope.notLoaded = notLoaded;
-          $scope.setLoaded = setLoaded;
           $scope.handlePaymentSuccess = function() {
-            return $modalInstance.close(booking);
+            return $uibModalInstance.close(booking);
           };
           return $scope.cancel = function() {
-            return $modalInstance.dismiss("cancel");
+            return $uibModalInstance.dismiss("cancel");
           };
-        }],
+        },
         resolve: {
           booking: function() {
             return booking;
           },
           total: function() {
             return total;
-          },
-          notLoaded: function() {
-            return $scope.notLoaded;
-          },
-          setLoaded: function() {
-            return $scope.setLoaded;
           }
         }
       });
@@ -164,7 +169,7 @@
     };
     return {
       edit: function(booking) {
-        return booking.getAnswersPromise().then(function(answers) {
+        return booking.$getAnswers().then(function(answers) {
           var answer, i, len, ref;
           ref = answers.answers;
           for (i = 0, len = ref.length; i < len; i++) {
@@ -182,19 +187,20 @@
       },
       cancel: function(booking) {
         var modalInstance;
-        modalInstance = $modal.open({
+        modalInstance = $uibModal.open({
+          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: "member_booking_delete_modal.html",
           windowClass: "bbug",
-          controller: ["$scope", "$rootScope", "$modalInstance", "booking", function($scope, $rootScope, $modalInstance, booking) {
+          controller: function($scope, $rootScope, $uibModalInstance, booking) {
             $scope.controller = "ModalDelete";
             $scope.booking = booking;
             $scope.confirm_delete = function() {
-              return $modalInstance.close(booking);
+              return $uibModalInstance.close(booking);
             };
             return $scope.cancel = function() {
-              return $modalInstance.dismiss("cancel");
+              return $uibModalInstance.dismiss("cancel");
             };
-          }],
+          },
           resolve: {
             booking: function() {
               return booking;
@@ -207,7 +213,7 @@
       },
       book: function(booking) {
         var params;
-        $scope.notLoaded($scope);
+        loader.notLoaded();
         params = {
           purchase_id: booking.purchase_ref,
           url_root: $rootScope.bb.api_url,
@@ -226,48 +232,49 @@
         }, function(err) {
           return AlertService.raise('NO_WAITLIST_SPACES_LEFT');
         });
-        return $scope.setLoaded($scope);
+        return loader.setLoaded();
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module("BBMember").controller("MemberPurchases", ["$scope", "$q", "MemberPurchaseService", "$log", function($scope, $q, MemberPurchaseService, $log) {
+  angular.module("BBMember").controller("MemberPurchases", function($scope, $q, $log, LoadingService, BBModel) {
     return $scope.getPurchases = function() {
-      var defer;
-      $scope.notLoaded($scope);
+      var defer, loader;
+      loader = LoadingService.$loader($scope).notLoaded();
       defer = $q.defer();
-      MemberPurchaseService.query($scope.member, {}).then(function(purchases) {
+      BBModel.Member.Purchase.$query($scope.member, {}).then(function(purchases) {
         $scope.purchases = purchases;
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         return defer.resolve(purchases);
       }, function(err) {
         $log.error(err.data);
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         return defer.reject([]);
       });
       return defer.promise;
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module("BBMember").controller("Wallet", ["$scope", "$q", "WalletService", "$log", "$modal", "$rootScope", "AlertService", function($scope, $q, WalletService, $log, $modal, $rootScope, AlertService) {
-    var updateClient;
+  angular.module("BBMember").controller("Wallet", function($scope, $rootScope, $q, $log, AlertService, LoadingService, BBModel) {
+    var loader, updateClient;
+    loader = LoadingService.$loader($scope);
     $scope.getWalletForMember = function(member, params) {
       var defer;
       defer = $q.defer();
-      $scope.notLoaded($scope);
-      WalletService.getWalletForMember(member, params).then(function(wallet) {
-        $scope.setLoaded($scope);
+      loader.notLoaded();
+      BBModel.Member.Wallet.$getWalletForMember(member, params).then(function(wallet) {
+        loader.setLoaded();
         $scope.wallet = wallet;
         updateClient(wallet);
         return defer.resolve(wallet);
       }, function(err) {
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         return defer.reject();
       });
       return defer.promise;
@@ -275,16 +282,16 @@
     $scope.getWalletLogs = function() {
       var defer;
       defer = $q.defer();
-      $scope.notLoaded($scope);
-      WalletService.getWalletLogs($scope.wallet).then(function(logs) {
+      loader.notLoaded();
+      BBModel.Member.Wallet.$getWalletLogs($scope.wallet).then(function(logs) {
         logs = _.sortBy(logs, function(log) {
           return -moment(log.created_at).unix();
         });
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         $scope.logs = logs;
         return defer.resolve(logs);
       }, function(err) {
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         $log.error(err.data);
         return defer.reject([]);
       });
@@ -293,25 +300,25 @@
     $scope.getWalletPurchaseBandsForWallet = function(wallet) {
       var defer;
       defer = $q.defer();
-      $scope.notLoaded($scope);
-      WalletService.getWalletPurchaseBandsForWallet(wallet).then(function(bands) {
+      loader.notLoaded();
+      BBModel.Member.Wallet.$getWalletPurchaseBandsForWallet(wallet).then(function(bands) {
         $scope.bands = bands;
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         return defer.resolve(bands);
       }, function(err) {
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         $log.error(err.data);
         return defer.resolve([]);
       });
       return defer.promise;
     };
     $scope.createWalletForMember = function(member) {
-      $scope.notLoaded($scope);
-      return WalletService.createWalletForMember(member).then(function(wallet) {
-        $scope.setLoaded($scope);
+      loader.notLoaded();
+      return BBModel.Member.Wallet.$createWalletForMember(member).then(function(wallet) {
+        loader.setLoaded();
         return $scope.wallet = wallet;
       }, function(err) {
-        $scope.setLoaded($scope);
+        loader.setLoaded();
         return $log.error(err.data);
       });
     };
@@ -320,7 +327,7 @@
       if (band == null) {
         band = null;
       }
-      $scope.notLoaded($scope);
+      loader.notLoaded();
       if (member) {
         params = {};
         if (amount > 0) {
@@ -341,19 +348,19 @@
         if (band) {
           params.band_id = band.id;
         }
-        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.setLoaded($scope);
+        return BBModel.Member.Wallet.$updateWalletForMember(member, params).then(function(wallet) {
+          loader.setLoaded();
           $scope.wallet = wallet;
           return $rootScope.$broadcast("wallet:updated", wallet, band);
         }, function(err) {
-          $scope.setLoaded($scope);
+          loader.setLoaded();
           return $log.error(err.data);
         });
       }
     };
     $scope.activateWallet = function(member) {
       var params;
-      $scope.notLoaded($scope);
+      loader.notLoaded();
       if (member) {
         params = {
           status: 1
@@ -361,18 +368,18 @@
         if ($scope.wallet) {
           params.wallet_id = $scope.wallet.id;
         }
-        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.setLoaded($scope);
+        return BBModel.Member.Wallet.$updateWalletForMember(member, params).then(function(wallet) {
+          loader.setLoaded();
           return $scope.wallet = wallet;
         }, function(err) {
-          $scope.setLoaded($scope);
+          loader.setLoaded();
           return $log.error(err.date);
         });
       }
     };
     $scope.deactivateWallet = function(member) {
       var params;
-      $scope.notLoaded($scope);
+      loader.notLoaded();
       if (member) {
         params = {
           status: 0
@@ -380,11 +387,11 @@
         if ($scope.wallet) {
           params.wallet_id = $scope.wallet.id;
         }
-        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.setLoaded($scope);
+        return BBModel.Member.Wallet.$updateWalletForMember(member, params).then(function(wallet) {
+          loader.setLoaded();
           return $scope.wallet = wallet;
         }, function(err) {
-          $scope.setLoaded($scope);
+          loader.setLoaded();
           return $log.error(err.date);
         });
       }
@@ -429,7 +436,7 @@
         return $scope.client.wallet_amount = wallet.amount;
       }
     };
-  }]);
+  });
 
 }).call(this);
 
@@ -472,7 +479,7 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('memberBookings', ["$rootScope", function($rootScope) {
+  angular.module('BBMember').directive('memberBookings', function($rootScope) {
     return {
       templateUrl: 'member_bookings_tabs.html',
       scope: {
@@ -480,14 +487,14 @@
       },
       link: function(scope, element, attrs) {}
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('memberBookingsTable', ["$modal", "$log", "$rootScope", "MemberLoginService", "MemberBookingService", "$compile", "$templateCache", "ModalForm", "BBModel", "Dialog", function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, $compile, $templateCache, ModalForm, BBModel, Dialog) {
+  angular.module('BBMember').directive('memberBookingsTable', function($uibModal, $log, ModalForm, BBModel) {
     var controller;
-    controller = function($scope, $modal) {
+    controller = function($scope, $uibModal, $document) {
       var getBookings;
       $scope.loading = true;
       $scope.fields || ($scope.fields = ['date_order', 'details']);
@@ -501,7 +508,7 @@
         booking = _.find($scope.booking_models, function(b) {
           return b.id === id;
         });
-        return booking.getAnswersPromise().then(function(answers) {
+        return booking.$getAnswers().then(function(answers) {
           var answer, j, len, ref;
           ref = answers.answers;
           for (j = 0, len = ref.length; j < len; j++) {
@@ -529,18 +536,19 @@
         booking = _.find($scope.booking_models, function(b) {
           return b.id === id;
         });
-        modalInstance = $modal.open({
+        modalInstance = $uibModal.open({
+          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: 'member_bookings_table_cancel_booking.html',
-          controller: ["$scope", "$modalInstance", "booking", function($scope, $modalInstance, booking) {
+          controller: function($scope, $uibModalInstance, booking) {
             $scope.booking = booking;
             $scope.booking.notify = true;
             $scope.ok = function() {
-              return $modalInstance.close($scope.booking);
+              return $uibModalInstance.close($scope.booking);
             };
             return $scope.close = function() {
-              return $modalInstance.dismiss();
+              return $uibModalInstance.dismiss();
             };
-          }],
+          },
           scope: $scope,
           resolve: {
             booking: function() {
@@ -557,7 +565,6 @@
           return booking.$post('cancel', params).then(function() {
             var i;
             i = _.findIndex($scope.booking_models, function(b) {
-              console.log(b);
               return b.id === booking.id;
             });
             $scope.booking_models.splice(i, 1);
@@ -585,7 +592,7 @@
           end_date: $scope.endDate ? $scope.endDate.format('YYYY-MM-DD') : void 0,
           end_time: $scope.endTime ? $scope.endTime.format('HH:mm') : void 0
         };
-        return MemberBookingService.query(member, params).then(function(bookings) {
+        return member.$getBookings(params).then(function(bookings) {
           $scope.booking_models = bookings;
           $scope.setRows();
           return $scope.loading = false;
@@ -618,7 +625,7 @@
         defaultOrder: '=?'
       }
     };
-  }]);
+  });
 
 }).call(this);
 
@@ -641,7 +648,7 @@
  */
 
 (function() {
-  angular.module('BBMember').directive('memberForm', ["$modal", "$log", "$rootScope", "MemberLoginService", "MemberBookingService", "AlertService", "PathSvc", function($modal, $log, $rootScope, MemberLoginService, MemberBookingService, AlertService, PathSvc) {
+  angular.module('BBMember').directive('memberForm', function($rootScope, AlertService, PathSvc) {
     return {
       templateUrl: function(el, attrs) {
         if (attrs.bbCustomMemberForm != null) {
@@ -666,7 +673,7 @@
           return scope.custom_member_form = true;
         }
       },
-      controller: ["$scope", function($scope) {
+      controller: function($scope) {
         $scope.loading = true;
         $scope.$watch('member', function(member) {
           if (member != null) {
@@ -716,16 +723,16 @@
             }
           }
         };
-      }]
+      }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('loginMember', ["$modal", "$log", "$rootScope", "MemberLoginService", "$templateCache", "$q", "$sessionStorage", "halClient", function($modal, $log, $rootScope, MemberLoginService, $templateCache, $q, $sessionStorage, halClient) {
+  angular.module('BBMember').directive('loginMember', function($uibModal, $document, $log, $rootScope, MemberLoginService, $templateCache, $q, $sessionStorage, halClient) {
     var link, loginMemberController, pickCompanyController;
-    loginMemberController = function($scope, $modalInstance, company_id) {
+    loginMemberController = function($scope, $uibModalInstance, company_id) {
       $scope.title = 'Login';
       $scope.schema = {
         type: 'object',
@@ -761,16 +768,16 @@
         return MemberLoginService.login(form, options).then(function(member) {
           member.email = form.email;
           member.password = form.password;
-          return $modalInstance.close(member);
+          return $uibModalInstance.close(member);
         }, function(err) {
-          return $modalInstance.dismiss(err);
+          return $uibModalInstance.dismiss(err);
         });
       };
       return $scope.cancel = function() {
-        return $modalInstance.dismiss('cancel');
+        return $uibModalInstance.dismiss('cancel');
       };
     };
-    pickCompanyController = function($scope, $modalInstance, companies) {
+    pickCompanyController = function($scope, $uibModalInstance, companies) {
       var c;
       $scope.title = 'Pick Company';
       $scope.schema = {
@@ -812,10 +819,10 @@
       ];
       $scope.pick_company_form = {};
       $scope.submit = function(form) {
-        return $modalInstance.close(form.company_id);
+        return $uibModalInstance.close(form.company_id);
       };
       return $scope.cancel = function() {
-        return $modalInstance.dismiss('cancel');
+        return $uibModalInstance.dismiss('cancel');
       };
     };
     link = function(scope, element, attrs) {
@@ -825,7 +832,8 @@
       (base1 = $rootScope.bb).api_url || (base1.api_url = "http://www.bookingbug.com");
       loginModal = function() {
         var modalInstance;
-        modalInstance = $modal.open({
+        modalInstance = $uibModal.open({
+          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: 'login_modal_form.html',
           controller: loginMemberController,
           resolve: {
@@ -862,7 +870,8 @@
       };
       pickCompanyModal = function(companies) {
         var modalInstance;
-        modalInstance = $modal.open({
+        modalInstance = $uibModal.open({
+          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: 'pick_company_modal_form.html',
           controller: pickCompanyController,
           resolve: {
@@ -933,12 +942,12 @@
       transclude: true,
       template: "<div ng-show='member' ng-transclude></div>"
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberPastBookings', ["$rootScope", "PaginationService", function($rootScope, PaginationService) {
+  angular.module('BBMember').directive('bbMemberPastBookings', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_past_bookings.html',
       scope: {
@@ -968,12 +977,12 @@
         });
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberPrePaidBookings', ["$rootScope", "PaginationService", function($rootScope, PaginationService) {
+  angular.module('BBMember').directive('bbMemberPrePaidBookings', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_pre_paid_bookings.html',
       scope: {
@@ -1006,12 +1015,12 @@
         });
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberPurchases', ["$rootScope", "PaginationService", function($rootScope, PaginationService) {
+  angular.module('BBMember').directive('bbMemberPurchases', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_purchases.html',
       scope: true,
@@ -1034,12 +1043,12 @@
         });
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('memberSsoLogin', ["$rootScope", "LoginService", "$sniffer", "$timeout", "QueryStringService", function($rootScope, LoginService, $sniffer, $timeout, QueryStringService) {
+  angular.module('BBMember').directive('memberSsoLogin', function($rootScope, LoginService, $sniffer, $timeout, QueryStringService) {
     return {
       scope: {
         token: '@memberSsoLogin',
@@ -1071,12 +1080,12 @@
         }
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberUpcomingBookings', ["$rootScope", "PaginationService", "PurchaseService", function($rootScope, PaginationService, PurchaseService) {
+  angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope, PaginationService, PurchaseService) {
     return {
       templateUrl: 'member_upcoming_bookings.html',
       scope: {
@@ -1110,12 +1119,12 @@
         });
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbWallet', ["$rootScope", function($rootScope) {
+  angular.module('BBMember').directive('bbWallet', function($rootScope) {
     return {
       scope: true,
       controller: 'Wallet',
@@ -1144,12 +1153,12 @@
         });
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbWalletLogs', ["$rootScope", "PaginationService", function($rootScope, PaginationService) {
+  angular.module('BBMember').directive('bbWalletLogs', function($rootScope, PaginationService) {
     return {
       templateUrl: 'wallet_logs.html',
       scope: true,
@@ -1190,12 +1199,12 @@
         });
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module("BB.Directives").directive("bbWalletPayment", ["$sce", "$rootScope", "$window", "$location", "SettingsService", "AlertService", function($sce, $rootScope, $window, $location, SettingsService, AlertService) {
+  angular.module("BB.Directives").directive("bbWalletPayment", function($sce, $rootScope, $window, $location, SettingsService, AlertService) {
     return {
       restrict: 'A',
       controller: 'Wallet',
@@ -1332,12 +1341,12 @@
         })(this), false);
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module("BB.Directives").directive("bbWalletPurchaseBands", ["$rootScope", function($rootScope) {
+  angular.module("BB.Directives").directive("bbWalletPurchaseBands", function($rootScope) {
     return {
       scope: true,
       restrict: "AE",
@@ -1366,7 +1375,7 @@
         });
       }
     };
-  }]);
+  });
 
 }).call(this);
 
@@ -1376,13 +1385,13 @@
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module('BB.Models').factory("Member.BookingModel", ["$q", "$window", "BBModel", "BaseModel", "$bbug", function($q, $window, BBModel, BaseModel, $bbug) {
+  angular.module('BB.Models').factory("Member.BookingModel", function($q, $window, $bbug, MemberBookingService, BBModel, BaseModel) {
     var Member_Booking;
     return Member_Booking = (function(superClass) {
       extend(Member_Booking, superClass);
 
       function Member_Booking(data) {
-        this.getMemberPromise = bind(this.getMemberPromise, this);
+        this.$getMember = bind(this.$getMember, this);
         Member_Booking.__super__.constructor.call(this, data);
         this.datetime = moment.parseZone(this.datetime);
         if (this.time_zone) {
@@ -1460,7 +1469,14 @@
         return defer.promise;
       };
 
-      Member_Booking.prototype.getMemberPromise = function() {
+      Member_Booking.prototype.printed_price = function() {
+        if (parseFloat(this.price) % 1 === 0) {
+          return "£" + this.price;
+        }
+        return $window.sprintf("£%.2f", parseFloat(this.price));
+      };
+
+      Member_Booking.prototype.$getMember = function() {
         var defer;
         defer = $q.defer();
         if (this.member) {
@@ -1485,10 +1501,26 @@
         return this.canCancel();
       };
 
+      Member_Booking.$query = function(member, params) {
+        return MemberBookingService.query(member, params);
+      };
+
+      Member_Booking.$cancel = function(member, booking) {
+        return MemberBookingService.cancel(member, booking);
+      };
+
+      Member_Booking.$update = function(booking) {
+        return MemberBookingService.update(booking);
+      };
+
+      Member_Booking.$flush = function(member, params) {
+        return MemberBookingService.flush(member, params);
+      };
+
       return Member_Booking;
 
     })(BaseModel);
-  }]);
+  });
 
 }).call(this);
 
@@ -1496,7 +1528,7 @@
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module('BB.Models').factory("Member.MemberModel", ["$q", "BBModel", "BaseModel", "ClientModel", function($q, BBModel, BaseModel, ClientModel) {
+  angular.module('BB.Models').factory("Member.MemberModel", function($q, MemberService, BBModel, BaseModel, ClientModel) {
     var Member_Member;
     return Member_Member = (function(superClass) {
       extend(Member_Member, superClass);
@@ -1505,10 +1537,47 @@
         return Member_Member.__super__.constructor.apply(this, arguments);
       }
 
+      Member_Member.$refresh = function(member) {
+        return MemberService.refresh(member);
+      };
+
+      Member_Member.$current = function() {
+        return MemberService.current();
+      };
+
+      Member_Member.$updateMember = function(member, params) {
+        return MemberService.updateMember(member, params);
+      };
+
+      Member_Member.$sendWelcomeEmail = function(member, params) {
+        return MemberService.sendWelcomeEmail(member, params);
+      };
+
       return Member_Member;
 
     })(ClientModel);
-  }]);
+  });
+
+}).call(this);
+
+(function() {
+  'use strict';
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module('BB.Models').factory("Member.PrePaidBookingModel", function(BaseModel) {
+    var Member_PrePaidBooking;
+    return Member_PrePaidBooking = (function(superClass) {
+      extend(Member_PrePaidBooking, superClass);
+
+      function Member_PrePaidBooking(data) {
+        Member_PrePaidBooking.__super__.constructor.call(this, data);
+      }
+
+      return Member_PrePaidBooking;
+
+    })(BaseModel);
+  });
 
 }).call(this);
 
@@ -1516,7 +1585,74 @@
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module("BB.Models").factory("Member.WalletModel", ["BBModel", "BaseModel", function(BBModel, BaseModel) {
+  angular.module("BB.Models").factory("Member.PurchaseModel", function($q, MemberPurchaseService, BBModel, BaseModel) {
+    var Member_Purchase;
+    return Member_Purchase = (function(superClass) {
+      extend(Member_Purchase, superClass);
+
+      function Member_Purchase(data) {
+        Member_Purchase.__super__.constructor.call(this, data);
+        this.created_at = moment.parseZone(this.created_at);
+        if (this.time_zone) {
+          this.created_at.tz(this.time_zone);
+        }
+      }
+
+      Member_Purchase.prototype.getItems = function() {
+        var deferred;
+        deferred = $q.defer();
+        this._data.$get('purchase_items').then(function(items) {
+          var item;
+          this.items = (function() {
+            var i, len, results;
+            results = [];
+            for (i = 0, len = items.length; i < len; i++) {
+              item = items[i];
+              results.push(new BBModel.Member.PurchaseItem(item));
+            }
+            return results;
+          })();
+          return deferred.resolve(this.items);
+        });
+        return deferred.promise;
+      };
+
+      Member_Purchase.$query = function(member, params) {
+        return MemberPurchaseService.query(member, params);
+      };
+
+      return Member_Purchase;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory("Member.PurchaseItemModel", function(BBModel, BaseModel) {
+    var Member_PurchaseItem;
+    return Member_PurchaseItem = (function(superClass) {
+      extend(Member_PurchaseItem, superClass);
+
+      function Member_PurchaseItem(data) {
+        Member_PurchaseItem.__super__.constructor.call(this, data);
+      }
+
+      return Member_PurchaseItem;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory("Member.WalletModel", function(WalletService, BBModel, BaseModel) {
     var Member_Wallet;
     return Member_Wallet = (function(superClass) {
       extend(Member_Wallet, superClass);
@@ -1525,10 +1661,30 @@
         Member_Wallet.__super__.constructor.call(this, data);
       }
 
+      Member_Wallet.$getWalletForMember = function(member, params) {
+        return WalletService.getWalletForMember(member, params);
+      };
+
+      Member_Wallet.$getWalletLogs = function(wallet) {
+        return WalletService.getWalletLogs(wallet);
+      };
+
+      Member_Wallet.$getWalletPurchaseBandsForWallet = function(wallet) {
+        return WalletService.getWalletPurchaseBandsForWallet(wallet);
+      };
+
+      Member_Wallet.$updateWalletForMember = function(member, params) {
+        return WalletService.updateWalletForMember(member, params);
+      };
+
+      Member_Wallet.$createWalletForMember = function(member) {
+        return WalletService.createWalletForMember(member);
+      };
+
       return Member_Wallet;
 
     })(BaseModel);
-  }]);
+  });
 
 }).call(this);
 
@@ -1536,7 +1692,7 @@
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module("BB.Models").factory("Member.WalletLogModel", ["$q", "BBModel", "BaseModel", function($q, BBModel, BaseModel) {
+  angular.module("BB.Models").factory("Member.WalletLogModel", function($q, BBModel, BaseModel) {
     var Member_WalletLog;
     return Member_WalletLog = (function(superClass) {
       extend(Member_WalletLog, superClass);
@@ -1551,7 +1707,7 @@
       return Member_WalletLog;
 
     })(BaseModel);
-  }]);
+  });
 
 }).call(this);
 
@@ -1559,7 +1715,7 @@
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
 
-  angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', ["BBModel", "BaseModel", function(BBModel, BaseModel) {
+  angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function(BBModel, BaseModel) {
     var Member_WalletPurchaseBand;
     return Member_WalletPurchaseBand = (function(superClass) {
       extend(Member_WalletPurchaseBand, superClass);
@@ -1571,12 +1727,12 @@
       return Member_WalletPurchaseBand;
 
     })(BaseModel);
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberBookingService", ["$q", "SpaceCollections", "$rootScope", "MemberService", "BBModel", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
+  angular.module('BBMember.Services').factory("MemberBookingService", function($q, SpaceCollections, $rootScope, MemberService, BBModel) {
     return {
       query: function(member, params) {
         var deferred;
@@ -1631,7 +1787,7 @@
           return function(b) {
             booking.deleted = true;
             b = new BBModel.Member.Booking(b);
-            MemberService.refresh(member).then(function(member) {
+            BBModel.Member.Member.$refresh(member).then(function(member) {
               return member = member;
             }, function(err) {});
             return deferred.resolve(b);
@@ -1672,12 +1828,12 @@
         }
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberLoginService", ["$q", "halClient", "$rootScope", "BBModel", "$sessionStorage", function($q, halClient, $rootScope, BBModel, $sessionStorage) {
+  angular.module('BBMember.Services').factory("MemberLoginService", function($q, $rootScope, $sessionStorage, halClient, BBModel) {
     return {
       login: function(form, options) {
         var defer, url;
@@ -1691,7 +1847,7 @@
             return login.$get('member').then(function(member) {
               var auth_token;
               member = new BBModel.Member.Member(member);
-              auth_token = member.getOption('auth_token');
+              auth_token = member._data.getOption('auth_token');
               $sessionStorage.setItem("login", member.$toStore());
               $sessionStorage.setItem("auth_token", auth_token);
               return defer.resolve(member);
@@ -1719,12 +1875,12 @@
         return defer.promise;
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberService", ["$q", "halClient", "$rootScope", "BBModel", function($q, halClient, $rootScope, BBModel) {
+  angular.module('BBMember.Services').factory("MemberService", function($q, halClient, $rootScope, BBModel) {
     return {
       refresh: function(member) {
         var deferred;
@@ -1782,12 +1938,12 @@
         return deferred.promise;
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberPrePaidBookingService", ["$q", "BBModel", function($q, BBModel) {
+  angular.module('BBMember.Services').factory("MemberPrePaidBookingService", function($q, BBModel) {
     return {
       query: function(member, params) {
         var deferred;
@@ -1836,12 +1992,12 @@
         return deferred.promise;
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module('BBMember.Services').factory("MemberPurchaseService", ["$q", "$rootScope", "BBModel", function($q, $rootScope, BBModel) {
+  angular.module('BBMember.Services').factory("MemberPurchaseService", function($q, $rootScope, BBModel) {
     return {
       query: function(member, params) {
         var deferred;
@@ -1877,12 +2033,12 @@
         return deferred.promise;
       }
     };
-  }]);
+  });
 
 }).call(this);
 
 (function() {
-  angular.module("BBMember.Services").factory("WalletService", ["$q", "BBModel", function($q, BBModel) {
+  angular.module("BBMember.Services").factory("WalletService", function($q, BBModel) {
     return {
       getWalletForMember: function(member, params) {
         var deferred;
@@ -1990,6 +2146,6 @@
         return deferred.promise;
       }
     };
-  }]);
+  });
 
 }).call(this);
