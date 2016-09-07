@@ -39,7 +39,7 @@
   'use strict';
   angular.module('BBMember').controller('MemberBookings', function($scope, $uibModal, $document, $log, $q, ModalForm, $rootScope, AlertService, PurchaseService, LoadingService) {
     var bookWaitlistSucces, getBookings, loader, openPaymentModal, updateBookings;
-    loader = LoadingService.$loader($scope).notLoaded();
+    loader = LoadingService.$loader($scope);
     $scope.getUpcomingBookings = function() {
       var defer, now, params;
       defer = $q.defer();
@@ -1521,6 +1521,10 @@
         return this.canCancel();
       };
 
+      Member_Booking.prototype.$update = function() {
+        return MemberBookingService.update(this);
+      };
+
       Member_Booking.$query = function(member, params) {
         return MemberBookingService.query(member, params);
       };
@@ -1826,7 +1830,6 @@
       update: function(booking) {
         var deferred;
         deferred = $q.defer();
-        $rootScope.member.flushBookings();
         booking.$put('self', {}, booking).then((function(_this) {
           return function(booking) {
             var book;
@@ -2047,11 +2050,19 @@
                 })();
                 return deferred.resolve(purchases);
               }, function(err) {
-                return deferred.reject(err);
+                if (err.status === 404) {
+                  return deferred.resolve([]);
+                } else {
+                  return deferred.reject(err);
+                }
               });
             };
           })(this), function(err) {
-            return deferred.reject(err);
+            if (err.status === 404) {
+              return deferred.resolve([]);
+            } else {
+              return deferred.reject(err);
+            }
           });
         }
         return deferred.promise;
