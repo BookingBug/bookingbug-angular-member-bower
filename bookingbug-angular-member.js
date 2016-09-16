@@ -460,10 +460,11 @@
       },
       require: ['^?bbMemberUpcomingBookings', '^?bbMemberPastBookings'],
       link: function(scope, element, attrs, controllers) {
-        var member_booking_controller;
+        var member_booking_controller, time_now;
         scope.actions = [];
         member_booking_controller = controllers[0] ? controllers[0] : controllers[1];
-        if (scope.booking.on_waitlist && !scope.booking.datetime.isBefore(moment(), 'day')) {
+        time_now = moment();
+        if (scope.booking.on_waitlist && !scope.booking.datetime.isBefore(time_now, 'day')) {
           scope.actions.push({
             action: member_booking_controller.book,
             label: 'Book',
@@ -471,7 +472,7 @@
             disabled: !scope.booking.settings.sent_waitlist
           });
         }
-        if (scope.booking.paid < scope.booking.price) {
+        if (scope.booking.paid < scope.booking.price && scope.booking.datetime.isAfter(time_now)) {
           scope.actions.push({
             action: member_booking_controller.pay,
             label: 'Pay'
@@ -482,7 +483,7 @@
           label: 'Details',
           translation_key: 'MEMBER_BOOKING_EDIT'
         });
-        if (!scope.booking.datetime.isBefore(moment(), 'day')) {
+        if (!scope.booking.datetime.isBefore(time_now, 'day')) {
           return scope.actions.push({
             action: member_booking_controller.cancel,
             label: 'Cancel',
@@ -691,20 +692,69 @@
           return scope.custom_member_form = true;
         }
       },
-      controller: function($scope) {
+      controller: function($scope, FormTransform) {
+        var checkSchema;
         $scope.loading = true;
+        checkSchema = function(schema) {
+          var base, base1, base2, base3, k, name, name1, ref, v, vals;
+          ref = schema.properties;
+          for (k in ref) {
+            v = ref[k];
+            vals = k.split(".");
+            if (vals[0] === "questions" && vals.length > 1) {
+              (base = schema.properties).questions || (base.questions = {
+                type: "object",
+                properties: {}
+              });
+              (base1 = schema.properties.questions.properties)[name = vals[1]] || (base1[name] = {
+                type: "object",
+                properties: {
+                  answer: v
+                }
+              });
+            }
+            if (vals[0] === "client" && vals.length > 2) {
+              (base2 = schema.properties).client || (base2.client = {
+                type: "object",
+                properties: {
+                  q: {
+                    type: "object",
+                    properties: {}
+                  }
+                }
+              });
+              (base3 = schema.properties.client.properties.q.properties)[name1 = vals[2]] || (base3[name1] = {
+                type: "object",
+                properties: {
+                  answer: v
+                }
+              });
+            }
+          }
+          return schema;
+        };
         $scope.$watch('member', function(member) {
           if (member != null) {
             if (member.$has('edit_member')) {
               return member.$get('edit_member').then(function(member_schema) {
+                var model_type;
                 $scope.form = member_schema.form;
-                $scope.schema = member_schema.schema;
+                model_type = member.constructor.name;
+                if (FormTransform['edit'][model_type]) {
+                  $scope.form = FormTransform['edit'][model_type]($scope.form);
+                }
+                $scope.schema = checkSchema(member_schema.schema);
                 return $scope.loading = false;
               });
             } else if (member.$has('edit')) {
               return member.$get('edit').then(function(member_schema) {
+                var model_type;
                 $scope.form = member_schema.form;
-                $scope.schema = member_schema.schema;
+                model_type = member.constructor.name;
+                if (FormTransform['edit'][model_type]) {
+                  $scope.form = FormTransform['edit'][model_type]($scope.form);
+                }
+                $scope.schema = checkSchema(member_schema.schema);
                 return $scope.loading = false;
               });
             }
@@ -988,13 +1038,13 @@
           });
         };
         scope.$watch('member', function() {
-          if (!scope.past_bookings) {
+          if (scope.member && !scope.past_bookings) {
             return getBookings();
           }
         });
-        return $rootScope.connection_started.then(function() {
+        if (scope.member) {
           return getBookings();
-        });
+        }
       }
     };
   });
@@ -1030,9 +1080,9 @@
             return PaginationService.update(scope.pagination, pre_paid_bookings.length);
           });
         });
-        return $rootScope.connection_started.then(function() {
+        if (scope.member) {
           return getBookings();
-        });
+        }
       }
     };
   });
