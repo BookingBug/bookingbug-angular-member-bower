@@ -107,10 +107,7 @@
     $scope.cancelBooking = function(booking) {
       var index;
       index = _.indexOf($scope.upcoming_bookings, booking);
-      if (index === -1) {
-        return false;
-      }
-      $scope.upcoming_bookings.splice(index, 1);
+      _.without($scope.upcoming_bookings, booking);
       AlertService.raise('BOOKING_CANCELLED');
       return booking.$del('self').then(function() {
         $rootScope.$broadcast("booking:cancelled");
