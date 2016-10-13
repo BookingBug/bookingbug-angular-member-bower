@@ -138,7 +138,6 @@
     openPaymentModal = function(booking, total) {
       var modalInstance;
       modalInstance = $uibModal.open({
-        appendTo: angular.element($document[0].getElementById('bb')),
         templateUrl: "booking_payment_modal.html",
         windowClass: "bbug",
         size: "lg",
@@ -186,7 +185,6 @@
       cancel: function(booking) {
         var modalInstance;
         modalInstance = $uibModal.open({
-          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: "member_booking_delete_modal.html",
           windowClass: "bbug",
           controller: function($scope, $rootScope, $uibModalInstance, booking) {
@@ -552,7 +550,6 @@
           return b.id === id;
         });
         modalInstance = $uibModal.open({
-          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: 'member_bookings_table_cancel_booking.html',
           controller: function($scope, $uibModalInstance, booking) {
             $scope.booking = booking;
@@ -923,7 +920,6 @@
       loginModal = function() {
         var modalInstance;
         modalInstance = $uibModal.open({
-          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: 'login_modal_form.html',
           controller: loginMemberController,
           resolve: {
@@ -961,7 +957,6 @@
       pickCompanyModal = function(companies) {
         var modalInstance;
         modalInstance = $uibModal.open({
-          appendTo: angular.element($document[0].getElementById('bb')),
           templateUrl: 'pick_company_modal_form.html',
           controller: pickCompanyController,
           resolve: {
