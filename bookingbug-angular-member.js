@@ -22,7 +22,7 @@
 
   angular.module('BBMember').run(function($q, $injector, BBModel) {
     var i, len, mfuncs, model, models;
-    models = ['Member', 'Booking', 'Wallet', 'WalletLog', 'Purchase', 'PurchaseItem', 'WalletPurchaseBand'];
+    models = ['Member', 'Booking', 'Wallet', 'WalletLog', 'Purchase', 'PurchaseItem', 'WalletPurchaseBand', 'PaymentItem'];
     mfuncs = {};
     for (i = 0, len = models.length; i < len; i++) {
       model = models[i];
@@ -1656,6 +1656,26 @@
 }).call(this);
 
 (function() {
+  var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    hasProp = {}.hasOwnProperty;
+
+  angular.module("BB.Models").factory("Member.PaymentItemModel", function(BBModel, BaseModel) {
+    var Member_PaymentItem;
+    return Member_PaymentItem = (function(superClass) {
+      extend(Member_PaymentItem, superClass);
+
+      function Member_PaymentItem(data) {
+        Member_PaymentItem.__super__.constructor.call(this, data);
+      }
+
+      return Member_PaymentItem;
+
+    })(BaseModel);
+  });
+
+}).call(this);
+
+(function() {
   'use strict';
   var extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     hasProp = {}.hasOwnProperty;
@@ -2133,6 +2153,17 @@
           });
         }
         return deferred.promise;
+      }
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module('BBMember.Services').factory("BB.Service.payment_item", function($q, BBModel, UnwrapService) {
+    return {
+      unwrap: function(resource) {
+        return UnwrapService.unwrapResource(BBModel.Member.PaymentItem, resource);
       }
     };
   });
