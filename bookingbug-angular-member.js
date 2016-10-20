@@ -37,7 +37,7 @@
 
 (function() {
   'use strict';
-  angular.module('BBMember').controller('MemberBookings', function($scope, $uibModal, $document, $log, $q, ModalForm, $rootScope, AlertService, PurchaseService, LoadingService) {
+  angular.module('BBMember').controller('MemberBookings', function($scope, $uibModal, $document, $log, $q, ModalForm, $rootScope, AlertService, PurchaseService, LoadingService, BBModel) {
     var bookWaitlistSucces, getBookings, loader, openPaymentModal, updateBookings;
     loader = LoadingService.$loader($scope);
     $scope.getUpcomingBookings = function() {
@@ -108,8 +108,8 @@
       var index;
       index = _.indexOf($scope.upcoming_bookings, booking);
       _.without($scope.upcoming_bookings, booking);
-      AlertService.raise('BOOKING_CANCELLED');
-      return booking.$del('self').then(function() {
+      return BBModel.Member.Booking.$cancel($scope.member, booking).then(function() {
+        AlertService.raise('BOOKING_CANCELLED');
         $rootScope.$broadcast("booking:cancelled");
         if ($scope.removeBooking) {
           return $scope.removeBooking(booking);
