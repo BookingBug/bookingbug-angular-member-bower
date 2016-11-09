@@ -1298,7 +1298,7 @@
 }).call(this);
 
 (function() {
-  angular.module("BB.Directives").directive("bbWalletPayment", function($sce, $rootScope, $window, $location, SettingsService, AlertService) {
+  angular.module("BB.Directives").directive("bbWalletPayment", function($sce, $rootScope, $window, $location, GeneralOptions, AlertService) {
     return {
       restrict: 'A',
       controller: 'Wallet',
@@ -1336,7 +1336,7 @@
             'message': referrer,
             'custom_partial_url': custom_partial_url,
             'custom_stylesheet': custom_stylesheet,
-            'scroll_offset': SettingsService.getScrollOffset()
+            'scroll_offset': GeneralOptions.scroll_offset
           });
           return element.find('iframe')[0].contentWindow.postMessage(payload, origin);
         };
