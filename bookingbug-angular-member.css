@@ -1,0 +1,16 @@
+[bb-member-past-bookings],
+[bb-member-upcoming-bookings] {
+  padding-bottom: 10px; }
+  [bb-member-past-bookings] .booking-row,
+  [bb-member-upcoming-bookings] .booking-row {
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px; }
+    [bb-member-past-bookings] .booking-row:last-child,
+    [bb-member-upcoming-bookings] .booking-row:last-child {
+      border-bottom: none; }
+  [bb-member-past-bookings] .type div,
+  [bb-member-upcoming-bookings] .type div {
+    width: 40px;
+    height: 40px;
+    border-radius: 20px; }

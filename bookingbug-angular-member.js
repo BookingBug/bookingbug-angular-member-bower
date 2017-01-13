@@ -2312,7 +2312,7 @@
         MODAL: {
           EDIT_BOOKING: {
             CANCEL_BTN: "@:COMMON.BTN.CANCEL",
-            SAVE_BTN: "@:COMMON.BTN.CANCEL"
+            SAVE_BTN: "@:COMMON.BTN.SAVE"
           },
           LOGIN: {
             OK_BTN: "@:COMMON.BTN.OK",
@@ -2406,7 +2406,8 @@
           AMOUNT_LBL: "Amount",
           PAYMENT_IFRAME_HEADING: "Make Payment",
           TOP_UP_WALLET_BY: "Top up wallet by {{amount | currency}}",
-          MIN_TOP_UP: "Minimum top up amount must be greater than {{min_amount | currency}}"
+          MIN_TOP_UP: "Minimum top up amount must be greater than {{min_amount | currency}}",
+          TOPUP_AMOUNT_PLACEHOLDER: "Enter Top Up Amount"
         },
         WALLET_LOGS: {
           HEADING: "Wallet Transaction History",
@@ -2419,7 +2420,7 @@
         WALLET_PURCHASE_BANDS: {
           HEADING: "Wallet Purchase Bands",
           $X_FOR_$Y: "{{x | currency}} for {{y | currency}}",
-          BUY_BTN: "Buy"
+          BUY_BTN: "@:COMMON.BTN.BUY"
         },
         PURCHASE_HISTORY: {
           HEADING: "Purchase History"
