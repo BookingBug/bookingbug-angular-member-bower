@@ -2336,7 +2336,7 @@
           },
           BOOKING_PAYMENT: {
             DESCRIPTION: "Pay for your booking to confirm your place.",
-            TIME_RANGE: "{{start}} - {{end}}",
+            TIME_RANGE: "{{start | datetime: 'LT'}} - {{end | datetime: 'LT'}}",
             PAY_BTN: "@:COMMON.BTN.PAY"
           }
         },
@@ -2368,7 +2368,7 @@
         PREPAID_BOOKINGS: {
           NO_PREPAID_BOOKINGS: "You don't currently have any pre-paid bookings.",
           REMAINING_BOOKINGS: "{{remaining}} of {{total}} remaining",
-          PREPAID_BOOKING_DATES: "Book By {{book_by}} | Use from {{use_from}} | Use by {{use_by}}"
+          PREPAID_BOOKING_DATES: "Book By {{booking.book_by | datetime: 'L'}} | Use from {{booking.use_from | datetime: 'L'}} | Use by {{booking.use_by | datetime: 'L'}}"
         },
         PURCHASES: {
           YOUR_PURCHASES: "Your Purchases",
