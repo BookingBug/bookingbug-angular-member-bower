@@ -25,37 +25,347 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberBooking', function() {
-    return {
-      templateUrl: '_member_booking.html',
-      scope: {
-        booking: '=bbMemberBooking'
-      },
-      require: ['^?bbMemberUpcomingBookings', '^?bbMemberPastBookings'],
-      link: function(scope, element, attrs, controllers) {
-        var member_booking_controller;
-        scope.actions = [];
-        member_booking_controller = controllers[0] ? controllers[0] : controllers[1];
-        if (scope.booking.on_waitlist && !scope.booking.datetime.isBefore(moment(), 'day')) {
-          scope.actions.push({
-            action: member_booking_controller.book,
-            label: 'Book',
-            translation_key: 'MEMBER_BOOKING_WAITLIST_ACCEPT',
-            disabled: !scope.booking.settings.sent_waitlist
-          });
+  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService, $rootScope) {
+    var getBookings, updateBookings;
+    $scope.loading = true;
+    $scope.getUpcomingBookings = function() {
+      var defer, params;
+      defer = $q.defer();
+      params = {
+        start_date: moment().format('YYYY-MM-DD')
+      };
+      getBookings(params).then(function(upcoming_bookings) {
+        $scope.upcoming_bookings = upcoming_bookings;
+        return defer.resolve(upcoming_bookings);
+      }, function(err) {
+        return defer.reject([]);
+      });
+      return defer.promise;
+    };
+    $scope.getPastBookings = function(num, type) {
+      var date, defer, params;
+      defer = $q.defer();
+      if (num && type) {
+        date = moment().subtract(num, type);
+      } else {
+        date = moment().subtract(1, 'year');
+      }
+      params = {
+        start_date: date.format('YYYY-MM-DD'),
+        end_date: moment().add(1, 'day').format('YYYY-MM-DD')
+      };
+      getBookings(params).then(function(past_bookings) {
+        $scope.past_bookings = _.chain(past_bookings).filter(function(b) {
+          return b.datetime.isBefore(moment());
+        }).sortBy(function(b) {
+          return -b.datetime.unix();
+        }).value();
+        return defer.resolve(past_bookings);
+      }, function(err) {
+        return defer.reject([]);
+      });
+      return defer.promise;
+    };
+    $scope.flushBookings = function() {
+      var params;
+      params = {
+        start_date: moment().format('YYYY-MM-DD')
+      };
+      return MemberBookingService.flush($scope.member, params);
+    };
+    $scope.edit = function(booking) {
+      return booking.getAnswersPromise().then(function(answers) {
+        var answer, i, len, ref;
+        ref = answers.answers;
+        for (i = 0, len = ref.length; i < len; i++) {
+          answer = ref[i];
+          booking["question" + answer.question_id] = answer.value;
         }
-        scope.actions.push({
-          action: member_booking_controller.edit,
-          label: 'Details',
-          translation_key: 'MEMBER_BOOKING_EDIT'
+        return ModalForm.edit({
+          model: booking,
+          title: 'Booking Details',
+          templateUrl: 'edit_booking_modal_form.html',
+          windowClass: 'member_edit_booking_form',
+          success: updateBookings
         });
-        if (!scope.booking.datetime.isBefore(moment(), 'day')) {
-          return scope.actions.push({
-            action: member_booking_controller.cancel,
-            label: 'Cancel',
-            translation_key: 'MEMBER_BOOKING_CANCEL'
-          });
+      });
+    };
+    updateBookings = function() {
+      return $scope.getUpcomingBookings();
+    };
+    $scope.cancel = function(booking) {
+      var modalInstance;
+      modalInstance = $modal.open({
+        templateUrl: "member_booking_delete_modal.html",
+        windowClass: "bbug",
+        controller: function($scope, $rootScope, $modalInstance, booking) {
+          $scope.controller = "ModalDelete";
+          $scope.booking = booking;
+          $scope.confirm_delete = function() {
+            return $modalInstance.close(booking);
+          };
+          return $scope.cancel = function() {
+            return $modalInstance.dismiss("cancel");
+          };
+        },
+        resolve: {
+          booking: function() {
+            return booking;
+          }
         }
+      });
+      return modalInstance.result.then(function(booking) {
+        return $scope.cancelBooking(booking);
+      });
+    };
+    getBookings = function(params) {
+      var defer;
+      $scope.loading = true;
+      defer = $q.defer();
+      MemberBookingService.query($scope.member, params).then(function(bookings) {
+        $scope.loading = false;
+        return defer.resolve(bookings);
+      }, function(err) {
+        $log.error(err.data);
+        return $scope.loading = false;
+      });
+      return defer.promise;
+    };
+    $scope.cancelBooking = function(booking) {
+      $scope.loading = true;
+      return MemberBookingService.cancel($scope.member, booking).then(function() {
+        var removeBooking;
+        $rootScope.$broadcast("booking:cancelled");
+        removeBooking = function(booking, bookings) {
+          return bookings.filter(function(b) {
+            return b.id !== booking.id;
+          });
+        };
+        if ($scope.past_bookings) {
+          $scope.past_bookings = removeBooking(booking, $scope.past_bookings);
+        }
+        if ($scope.upcoming_bookings) {
+          $scope.upcoming_bookings = removeBooking(booking, $scope.upcoming_bookings);
+        }
+        if ($scope.removeBooking) {
+          $scope.removeBooking(booking);
+        }
+        return $scope.loading = false;
+      });
+    };
+    return $scope.getPrePaidBookings = function(params) {
+      var defer;
+      $scope.loading = true;
+      defer = $q.defer();
+      MemberPrePaidBookingService.query($scope.member, params).then(function(bookings) {
+        $scope.loading = false;
+        $scope.pre_paid_bookings = bookings;
+        return defer.resolve(bookings);
+      }, function(err) {
+        defer.reject([]);
+        $log.error(err.data);
+        return $scope.loading = false;
+      });
+      return defer.promise;
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module("BBMember").controller("MemberPurchases", function($scope, $q, MemberPurchaseService, $log) {
+    return $scope.getPurchases = function() {
+      var defer;
+      $scope.notLoaded($scope);
+      defer = $q.defer();
+      MemberPurchaseService.query($scope.member, {}).then(function(purchases) {
+        $scope.purchases = purchases;
+        $scope.setLoaded($scope);
+        return defer.resolve(purchases);
+      }, function(err) {
+        $log.error(err.data);
+        $scope.setLoaded($scope);
+        return defer.reject([]);
+      });
+      return defer.promise;
+    };
+  });
+
+}).call(this);
+
+(function() {
+  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope, AlertService) {
+    var updateClient;
+    $scope.getWalletForMember = function(member, params) {
+      var defer;
+      defer = $q.defer();
+      $scope.notLoaded($scope);
+      WalletService.getWalletForMember(member, params).then(function(wallet) {
+        $scope.setLoaded($scope);
+        $scope.wallet = wallet;
+        updateClient(wallet);
+        return defer.resolve(wallet);
+      }, function(err) {
+        $scope.setLoaded($scope);
+        return defer.reject();
+      });
+      return defer.promise;
+    };
+    $scope.getWalletLogs = function() {
+      var defer;
+      defer = $q.defer();
+      $scope.notLoaded($scope);
+      WalletService.getWalletLogs($scope.wallet).then(function(logs) {
+        logs = _.sortBy(logs, function(log) {
+          return -moment(log.created_at).unix();
+        });
+        $scope.setLoaded($scope);
+        $scope.logs = logs;
+        return defer.resolve(logs);
+      }, function(err) {
+        $scope.setLoaded($scope);
+        $log.error(err.data);
+        return defer.reject([]);
+      });
+      return defer.promise;
+    };
+    $scope.getWalletPurchaseBandsForWallet = function(wallet) {
+      var defer;
+      defer = $q.defer();
+      $scope.notLoaded($scope);
+      WalletService.getWalletPurchaseBandsForWallet(wallet).then(function(bands) {
+        $scope.bands = bands;
+        $scope.setLoaded($scope);
+        return defer.resolve(bands);
+      }, function(err) {
+        $scope.setLoaded($scope);
+        $log.error(err.data);
+        return defer.resolve([]);
+      });
+      return defer.promise;
+    };
+    $scope.createWalletForMember = function(member) {
+      $scope.notLoaded($scope);
+      return WalletService.createWalletForMember(member).then(function(wallet) {
+        $scope.setLoaded($scope);
+        return $scope.wallet = wallet;
+      }, function(err) {
+        $scope.setLoaded($scope);
+        return $log.error(err.data);
+      });
+    };
+    $scope.updateWallet = function(member, amount, band) {
+      var params;
+      if (band == null) {
+        band = null;
+      }
+      $scope.notLoaded($scope);
+      if (member) {
+        params = {};
+        if (amount > 0) {
+          params.amount = amount;
+        }
+        if ($scope.wallet) {
+          params.wallet_id = $scope.wallet.id;
+        }
+        if ($scope.total) {
+          params.total_id = $scope.total.id;
+        }
+        if ($scope.deposit) {
+          params.deposit = $scope.deposit;
+        }
+        if ($scope.basket) {
+          params.basket_total_price = $scope.basket.total_price;
+        }
+        if (band) {
+          params.band_id = band.id;
+        }
+        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
+          $scope.setLoaded($scope);
+          $scope.wallet = wallet;
+          return $rootScope.$broadcast("wallet:updated", wallet, band);
+        }, function(err) {
+          $scope.setLoaded($scope);
+          return $log.error(err.data);
+        });
+      }
+    };
+    $scope.activateWallet = function(member) {
+      var params;
+      $scope.notLoaded($scope);
+      if (member) {
+        params = {
+          status: 1
+        };
+        if ($scope.wallet) {
+          params.wallet_id = $scope.wallet.id;
+        }
+        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
+          $scope.setLoaded($scope);
+          return $scope.wallet = wallet;
+        }, function(err) {
+          $scope.setLoaded($scope);
+          return $log.error(err.date);
+        });
+      }
+    };
+    $scope.deactivateWallet = function(member) {
+      var params;
+      $scope.notLoaded($scope);
+      if (member) {
+        params = {
+          status: 0
+        };
+        if ($scope.wallet) {
+          params.wallet_id = $scope.wallet.id;
+        }
+        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
+          $scope.setLoaded($scope);
+          return $scope.wallet = wallet;
+        }, function(err) {
+          $scope.setLoaded($scope);
+          return $log.error(err.date);
+        });
+      }
+    };
+    $scope.purchaseBand = function(band) {
+      $scope.selected_band = band;
+      return $scope.updateWallet($scope.member, band.wallet_amount, band);
+    };
+    $scope.walletPaymentDone = function() {
+      return $scope.getWalletForMember($scope.member).then(function(wallet) {
+        AlertService.raise('TOPUP_SUCCESS');
+        $rootScope.$broadcast("wallet:topped_up", wallet);
+        return $scope.wallet_topped_up = true;
+      });
+    };
+    $scope.basketWalletPaymentDone = function() {
+      $scope.callSetLoaded();
+      return $scope.decideNextPage('checkout');
+    };
+    $scope.error = function(message) {
+      return AlertService.warning('TOPUP_FAILED');
+    };
+    $scope.add = function(value) {
+      value = value || $scope.amount_increment;
+      return $scope.amount += value;
+    };
+    $scope.subtract = function(value) {
+      value = value || $scope.amount_increment;
+      return $scope.add(-value);
+    };
+    $scope.isSubtractValid = function(value) {
+      var new_amount;
+      if (!$scope.wallet) {
+        return false;
+      }
+      value = value || $scope.amount_increment;
+      new_amount = $scope.amount - value;
+      return new_amount >= $scope.wallet.min_amount;
+    };
+    return updateClient = function(wallet) {
+      if ($scope.member.self === $scope.client.self) {
+        return $scope.client.wallet_amount = wallet.amount;
       }
     };
   });
@@ -190,7 +500,7 @@
       if ($scope.orderBy == null) {
         $scope.orderBy = 'date_order';
       }
-      $scope.now = moment();
+      $scope.now = moment().format('YYYY-MM-DD');
       if ($scope.member) {
         return getBookings($scope, $scope.member);
       }
@@ -533,9 +843,7 @@
     return {
       templateUrl: 'member_past_bookings.html',
       scope: {
-        member: '=',
-        notLoaded: '=',
-        setLoaded: '='
+        member: '='
       },
       controller: 'MemberBookings',
       link: function(scope, element, attrs) {
@@ -667,13 +975,11 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope, PaginationService, PurchaseService) {
+  angular.module('BBMember').directive('bbMemberUpcomingBookings', function($rootScope, PaginationService) {
     return {
       templateUrl: 'member_upcoming_bookings.html',
       scope: {
-        member: '=',
-        notLoaded: '=',
-        setLoaded: '='
+        member: '='
       },
       controller: 'MemberBookings',
       link: function(scope, element, attrs) {
@@ -962,415 +1268,6 @@
 }).call(this);
 
 (function() {
-  angular.module('BBMember').controller('MemberBookings', function($scope, $modal, $log, MemberBookingService, $q, ModalForm, MemberPrePaidBookingService, $rootScope, AlertService, PurchaseService) {
-    var bookWaitlistSucces, getBookings, openPaymentModal, updateBookings;
-    $scope.getUpcomingBookings = function() {
-      var defer, now, params;
-      defer = $q.defer();
-      now = moment();
-      params = {
-        start_date: now.toISODate()
-      };
-      getBookings(params).then(function(results) {
-        $scope.upcoming_bookings = results.filter(function(result) {
-          return result.datetime.isAfter(now);
-        });
-        return defer.resolve($scope.upcoming_bookings);
-      }, function(err) {
-        return defer.reject([]);
-      });
-      return defer.promise;
-    };
-    $scope.getPastBookings = function(num, type) {
-      var date, defer, params;
-      defer = $q.defer();
-      if (num && type) {
-        date = moment().subtract(num, type);
-      } else {
-        date = moment().subtract(1, 'year');
-      }
-      params = {
-        start_date: date.format('YYYY-MM-DD'),
-        end_date: moment().add(1, 'day').format('YYYY-MM-DD')
-      };
-      getBookings(params).then(function(past_bookings) {
-        $scope.past_bookings = _.chain(past_bookings).filter(function(b) {
-          return b.datetime.isBefore(moment());
-        }).sortBy(function(b) {
-          return -b.datetime.unix();
-        }).value();
-        return defer.resolve(past_bookings);
-      }, function(err) {
-        return defer.reject([]);
-      });
-      return defer.promise;
-    };
-    $scope.flushBookings = function() {
-      var params;
-      params = {
-        start_date: moment().format('YYYY-MM-DD')
-      };
-      return MemberBookingService.flush($scope.member, params);
-    };
-    updateBookings = function() {
-      return $scope.getUpcomingBookings();
-    };
-    getBookings = function(params) {
-      var defer;
-      $scope.notLoaded($scope);
-      defer = $q.defer();
-      MemberBookingService.query($scope.member, params).then(function(bookings) {
-        $scope.setLoaded($scope);
-        return defer.resolve(bookings);
-      }, function(err) {
-        $log.error(err.data);
-        return $scope.setLoaded($scope);
-      });
-      return defer.promise;
-    };
-    $scope.cancelBooking = function(booking) {
-      var index;
-      index = _.indexOf($scope.upcoming_bookings, booking);
-      if (index === -1) {
-        return false;
-      }
-      $scope.upcoming_bookings.splice(index, 1);
-      AlertService.raise('BOOKING_CANCELLED');
-      return MemberBookingService.cancel($scope.member, booking).then(function() {
-        $rootScope.$broadcast("booking:cancelled");
-        if ($scope.removeBooking) {
-          return $scope.removeBooking(booking);
-        }
-      }, function(err) {
-        AlertService.raise('GENERIC');
-        return $scope.upcoming_bookings.splice(index, 0, booking);
-      });
-    };
-    $scope.getPrePaidBookings = function(params) {
-      var defer;
-      defer = $q.defer();
-      MemberPrePaidBookingService.query($scope.member, params).then(function(bookings) {
-        $scope.pre_paid_bookings = bookings;
-        return defer.resolve(bookings);
-      }, function(err) {
-        defer.reject([]);
-        return $log.error(err.data);
-      });
-      return defer.promise;
-    };
-    bookWaitlistSucces = function() {
-      AlertService.raise('WAITLIST_ACCEPTED');
-      return updateBookings();
-    };
-    openPaymentModal = function(booking, total) {
-      var modalInstance;
-      modalInstance = $modal.open({
-        templateUrl: "booking_payment_modal.html",
-        windowClass: "bbug",
-        size: "lg",
-        controller: function($scope, $rootScope, $modalInstance, booking, total, notLoaded, setLoaded) {
-          $scope.booking = booking;
-          $scope.total = total;
-          $scope.notLoaded = notLoaded;
-          $scope.setLoaded = setLoaded;
-          $scope.handlePaymentSuccess = function() {
-            return $modalInstance.close(booking);
-          };
-          return $scope.cancel = function() {
-            return $modalInstance.dismiss("cancel");
-          };
-        },
-        resolve: {
-          booking: function() {
-            return booking;
-          },
-          total: function() {
-            return total;
-          },
-          notLoaded: function() {
-            return $scope.notLoaded;
-          },
-          setLoaded: function() {
-            return $scope.setLoaded;
-          }
-        }
-      });
-      return modalInstance.result.then(function(booking) {
-        return bookWaitlistSucces();
-      });
-    };
-    return {
-      edit: function(booking) {
-        return booking.getAnswersPromise().then(function(answers) {
-          var answer, i, len, ref;
-          ref = answers.answers;
-          for (i = 0, len = ref.length; i < len; i++) {
-            answer = ref[i];
-            booking["question" + answer.question_id] = answer.value;
-          }
-          return ModalForm.edit({
-            model: booking,
-            title: 'Booking Details',
-            templateUrl: 'edit_booking_modal_form.html',
-            windowClass: 'member_edit_booking_form',
-            success: updateBookings
-          });
-        });
-      },
-      cancel: function(booking) {
-        var modalInstance;
-        modalInstance = $modal.open({
-          templateUrl: "member_booking_delete_modal.html",
-          windowClass: "bbug",
-          controller: function($scope, $rootScope, $modalInstance, booking) {
-            $scope.controller = "ModalDelete";
-            $scope.booking = booking;
-            $scope.confirm_delete = function() {
-              return $modalInstance.close(booking);
-            };
-            return $scope.cancel = function() {
-              return $modalInstance.dismiss("cancel");
-            };
-          },
-          resolve: {
-            booking: function() {
-              return booking;
-            }
-          }
-        });
-        return modalInstance.result.then(function(booking) {
-          return $scope.cancelBooking(booking);
-        });
-      },
-      book: function(booking) {
-        var params;
-        $scope.notLoaded($scope);
-        params = {
-          purchase_id: booking.purchase_ref,
-          url_root: $rootScope.bb.api_url,
-          booking: booking
-        };
-        PurchaseService.bookWaitlistItem(params).then(function(purchase_total) {
-          if (purchase_total.due_now > 0) {
-            if (purchase_total.$has('new_payment')) {
-              return openPaymentModal(booking, purchase_total);
-            } else {
-              return $log.error("total is missing new_payment link, this is usually caused by online payment not being configured correctly");
-            }
-          } else {
-            return bookWaitlistSucces();
-          }
-        }, function(err) {
-          return AlertService.raise('NO_WAITLIST_SPACES_LEFT');
-        });
-        return $scope.setLoaded($scope);
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module("BBMember").controller("MemberPurchases", function($scope, $q, MemberPurchaseService, $log) {
-    return $scope.getPurchases = function() {
-      var defer;
-      $scope.notLoaded($scope);
-      defer = $q.defer();
-      MemberPurchaseService.query($scope.member, {}).then(function(purchases) {
-        $scope.purchases = purchases;
-        $scope.setLoaded($scope);
-        return defer.resolve(purchases);
-      }, function(err) {
-        $log.error(err.data);
-        $scope.setLoaded($scope);
-        return defer.reject([]);
-      });
-      return defer.promise;
-    };
-  });
-
-}).call(this);
-
-(function() {
-  angular.module("BBMember").controller("Wallet", function($scope, $q, WalletService, $log, $modal, $rootScope, AlertService) {
-    var updateClient;
-    $scope.getWalletForMember = function(member, params) {
-      var defer;
-      defer = $q.defer();
-      $scope.notLoaded($scope);
-      WalletService.getWalletForMember(member, params).then(function(wallet) {
-        $scope.setLoaded($scope);
-        $scope.wallet = wallet;
-        updateClient(wallet);
-        return defer.resolve(wallet);
-      }, function(err) {
-        $scope.setLoaded($scope);
-        return defer.reject();
-      });
-      return defer.promise;
-    };
-    $scope.getWalletLogs = function() {
-      var defer;
-      defer = $q.defer();
-      $scope.notLoaded($scope);
-      WalletService.getWalletLogs($scope.wallet).then(function(logs) {
-        logs = _.sortBy(logs, function(log) {
-          return -moment(log.created_at).unix();
-        });
-        $scope.setLoaded($scope);
-        $scope.logs = logs;
-        return defer.resolve(logs);
-      }, function(err) {
-        $scope.setLoaded($scope);
-        $log.error(err.data);
-        return defer.reject([]);
-      });
-      return defer.promise;
-    };
-    $scope.getWalletPurchaseBandsForWallet = function(wallet) {
-      var defer;
-      defer = $q.defer();
-      $scope.notLoaded($scope);
-      WalletService.getWalletPurchaseBandsForWallet(wallet).then(function(bands) {
-        $scope.bands = bands;
-        $scope.setLoaded($scope);
-        return defer.resolve(bands);
-      }, function(err) {
-        $scope.setLoaded($scope);
-        $log.error(err.data);
-        return defer.resolve([]);
-      });
-      return defer.promise;
-    };
-    $scope.createWalletForMember = function(member) {
-      $scope.notLoaded($scope);
-      return WalletService.createWalletForMember(member).then(function(wallet) {
-        $scope.setLoaded($scope);
-        return $scope.wallet = wallet;
-      }, function(err) {
-        $scope.setLoaded($scope);
-        return $log.error(err.data);
-      });
-    };
-    $scope.updateWallet = function(member, amount, band) {
-      var params;
-      if (band == null) {
-        band = null;
-      }
-      $scope.notLoaded($scope);
-      if (member) {
-        params = {};
-        if (amount > 0) {
-          params.amount = amount;
-        }
-        if ($scope.wallet) {
-          params.wallet_id = $scope.wallet.id;
-        }
-        if ($scope.total) {
-          params.total_id = $scope.total.id;
-        }
-        if ($scope.deposit) {
-          params.deposit = $scope.deposit;
-        }
-        if ($scope.basket) {
-          params.basket_total_price = $scope.basket.total_price;
-        }
-        if (band) {
-          params.band_id = band.id;
-        }
-        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.setLoaded($scope);
-          $scope.wallet = wallet;
-          return $rootScope.$broadcast("wallet:updated", wallet, band);
-        }, function(err) {
-          $scope.setLoaded($scope);
-          return $log.error(err.data);
-        });
-      }
-    };
-    $scope.activateWallet = function(member) {
-      var params;
-      $scope.notLoaded($scope);
-      if (member) {
-        params = {
-          status: 1
-        };
-        if ($scope.wallet) {
-          params.wallet_id = $scope.wallet.id;
-        }
-        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.setLoaded($scope);
-          return $scope.wallet = wallet;
-        }, function(err) {
-          $scope.setLoaded($scope);
-          return $log.error(err.date);
-        });
-      }
-    };
-    $scope.deactivateWallet = function(member) {
-      var params;
-      $scope.notLoaded($scope);
-      if (member) {
-        params = {
-          status: 0
-        };
-        if ($scope.wallet) {
-          params.wallet_id = $scope.wallet.id;
-        }
-        return WalletService.updateWalletForMember(member, params).then(function(wallet) {
-          $scope.setLoaded($scope);
-          return $scope.wallet = wallet;
-        }, function(err) {
-          $scope.setLoaded($scope);
-          return $log.error(err.date);
-        });
-      }
-    };
-    $scope.purchaseBand = function(band) {
-      $scope.selected_band = band;
-      return $scope.updateWallet($scope.member, band.wallet_amount, band);
-    };
-    $scope.walletPaymentDone = function() {
-      return $scope.getWalletForMember($scope.member).then(function(wallet) {
-        AlertService.raise('TOPUP_SUCCESS');
-        $rootScope.$broadcast("wallet:topped_up", wallet);
-        return $scope.wallet_topped_up = true;
-      });
-    };
-    $scope.basketWalletPaymentDone = function() {
-      $scope.callSetLoaded();
-      return $scope.decideNextPage('checkout');
-    };
-    $scope.error = function(message) {
-      return AlertService.warning('TOPUP_FAILED');
-    };
-    $scope.add = function(value) {
-      value = value || $scope.amount_increment;
-      return $scope.amount += value;
-    };
-    $scope.subtract = function(value) {
-      value = value || $scope.amount_increment;
-      return $scope.add(-value);
-    };
-    $scope.isSubtractValid = function(value) {
-      var new_amount;
-      if (!$scope.wallet) {
-        return false;
-      }
-      value = value || $scope.amount_increment;
-      new_amount = $scope.amount - value;
-      return new_amount >= $scope.wallet.min_amount;
-    };
-    return updateClient = function(wallet) {
-      if ($scope.member.self === $scope.client.self) {
-        return $scope.client.wallet_amount = wallet.amount;
-      }
-    };
-  });
-
-}).call(this);
-
-(function() {
   'use strict';
   var bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
     extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
@@ -1581,8 +1478,6 @@
       query: function(member, params) {
         var deferred;
         deferred = $q.defer();
-        params || (params = {});
-        params.no_cache = true;
         if (!member.$has('bookings')) {
           deferred.reject("member does not have bookings");
         } else {
@@ -1601,7 +1496,6 @@
                 })();
                 return deferred.resolve(bookings);
               } else {
-                params.no_cache = false;
                 return bookings.$get('bookings', params).then(function(bookings) {
                   bookings = (function() {
                     var i, len, results;
@@ -1812,7 +1706,6 @@
                 })();
                 return deferred.resolve(bookings);
               } else {
-                params.no_cache = false;
                 return bookings.$get('pre_paid_bookings', params).then(function(bookings) {
                   bookings = (function() {
                     var i, len, results;
@@ -1846,14 +1739,13 @@
       query: function(member, params) {
         var deferred;
         params || (params = {});
-        params.no_cache = true;
+        params["no_cache"] = true;
         deferred = $q.defer();
         if (!member.$has('purchase_totals')) {
           deferred.reject("member does not have any purchases");
         } else {
           member.$get('purchase_totals', params).then((function(_this) {
             return function(purchases) {
-              params.no_cache = false;
               return purchases.$get('purchase_totals', params).then(function(purchases) {
                 var purchase;
                 purchases = (function() {
@@ -1887,7 +1779,7 @@
       getWalletForMember: function(member, params) {
         var deferred;
         params || (params = {});
-        params.no_cache = true;
+        params["no_cache"] = true;
         deferred = $q.defer();
         if (!member.$has("wallet")) {
           deferred.reject("Wallets are not turned on.");
