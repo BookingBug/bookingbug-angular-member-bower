@@ -25,8 +25,6 @@ angular.module('BBMember').config(function ($logProvider) {
 angular.module('BBMember').run(function ($q, $injector, BBModel) {
     'ngInject';
 
-    TrNgGrid.defaultColumnOptions.enableFiltering = false;
-
     var models = ['Member', 'Booking', 'Wallet', 'WalletLog', 'Purchase', 'PurchaseItem', 'WalletPurchaseBand', 'PaymentItem'];
     var mfuncs = {};
     var _iteratorNormalCompletion = true;
@@ -2147,7 +2145,7 @@ angular.module('BBMember.Services').factory("MemberBookingService", function ($q
                 booking.deleted = true;
                 b = new BBModel.Member.Booking(b);
                 BBModel.Member.Member.$refresh(member).then(function (member) {
-                    return member = member;
+                    return member;
                 }, function (err) {});
                 return deferred.resolve(b);
             }, function (err) {
