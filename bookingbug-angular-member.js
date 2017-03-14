@@ -1614,8 +1614,6 @@ angular.module("BB.Directives").directive("bbWalletPurchaseBands", function ($ro
 });
 'use strict';
 
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
-
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
@@ -1629,7 +1627,7 @@ angular.module('BB.Models').factory("Member.BookingModel", function ($q, $window
         function Member_Booking(data) {
             _classCallCheck(this, Member_Booking);
 
-            var _this = _possibleConstructorReturn(this, (Member_Booking.__proto__ || Object.getPrototypeOf(Member_Booking)).call(this, data));
+            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
 
             _this.datetime = moment.parseZone(_this.datetime);
             if (_this.time_zone) {
@@ -1646,149 +1644,129 @@ angular.module('BB.Models').factory("Member.BookingModel", function ($q, $window
             return _this;
         }
 
-        _createClass(Member_Booking, [{
-            key: 'icalLink',
-            value: function icalLink() {
-                return this._data.$href('ical');
-            }
-        }, {
-            key: 'webcalLink',
-            value: function webcalLink() {
-                return this._data.$href('ical');
-            }
-        }, {
-            key: 'gcalLink',
-            value: function gcalLink() {
-                return this._data.$href('gcal');
-            }
-        }, {
-            key: 'getGroup',
-            value: function getGroup() {
-                var _this2 = this;
+        Member_Booking.prototype.icalLink = function icalLink() {
+            return this._data.$href('ical');
+        };
 
-                if (this.group) {
-                    return this.group;
-                }
-                if (this._data.$has('event_groups')) {
-                    return this._data.$get('event_groups').then(function (group) {
-                        _this2.group = group;
-                        return _this2.group;
-                    });
-                }
-            }
-        }, {
-            key: 'getColour',
-            value: function getColour() {
-                if (this.getGroup()) {
-                    return this.getGroup().colour;
-                } else {
-                    return "#FFFFFF";
-                }
-            }
-        }, {
-            key: 'getCompany',
-            value: function getCompany() {
-                var _this3 = this;
+        Member_Booking.prototype.webcalLink = function webcalLink() {
+            return this._data.$href('ical');
+        };
 
-                if (this.company) {
-                    return this.company;
-                }
-                if (this.$has('company')) {
-                    return this._data.$get('company').then(function (company) {
-                        _this3.company = new BBModel.Company(company);
-                        return _this3.company;
-                    });
-                }
-            }
-        }, {
-            key: 'getAnswers',
-            value: function getAnswers() {
-                var _this4 = this;
+        Member_Booking.prototype.gcalLink = function gcalLink() {
+            return this._data.$href('gcal');
+        };
 
-                var defer = $q.defer();
-                if (this.answers) {
-                    defer.resolve(this.answers);
-                }
-                if (this._data.$has('answers')) {
-                    this._data.$get('answers').then(function (answers) {
-                        _this4.answers = Array.from(answers).map(function (a) {
-                            return new BBModel.Answer(a);
-                        });
-                        return defer.resolve(_this4.answers);
-                    });
-                } else {
-                    defer.resolve([]);
-                }
-                return defer.promise;
-            }
-        }, {
-            key: 'printed_price',
-            value: function printed_price() {
-                if (parseFloat(this.price) % 1 === 0) {
-                    return '\xA3' + this.price;
-                }
-                return $window.sprintf("£%.2f", parseFloat(this.price));
-            }
-        }, {
-            key: '$getMember',
-            value: function $getMember() {
-                var _this5 = this;
+        Member_Booking.prototype.getGroup = function getGroup() {
+            var _this2 = this;
 
-                var defer = $q.defer();
-                if (this.member) {
-                    defer.resolve(this.member);
-                }
-                if (this._data.$has('member')) {
-                    this._data.$get('member').then(function (member) {
-                        _this5.member = new BBModel.Member.Member(member);
-                        return defer.resolve(_this5.member);
+            if (this.group) {
+                return this.group;
+            }
+            if (this._data.$has('event_groups')) {
+                return this._data.$get('event_groups').then(function (group) {
+                    _this2.group = group;
+                    return _this2.group;
+                });
+            }
+        };
+
+        Member_Booking.prototype.getColour = function getColour() {
+            if (this.getGroup()) {
+                return this.getGroup().colour;
+            } else {
+                return "#FFFFFF";
+            }
+        };
+
+        Member_Booking.prototype.getCompany = function getCompany() {
+            var _this3 = this;
+
+            if (this.company) {
+                return this.company;
+            }
+            if (this.$has('company')) {
+                return this._data.$get('company').then(function (company) {
+                    _this3.company = new BBModel.Company(company);
+                    return _this3.company;
+                });
+            }
+        };
+
+        Member_Booking.prototype.getAnswers = function getAnswers() {
+            var _this4 = this;
+
+            var defer = $q.defer();
+            if (this.answers) {
+                defer.resolve(this.answers);
+            }
+            if (this._data.$has('answers')) {
+                this._data.$get('answers').then(function (answers) {
+                    _this4.answers = Array.from(answers).map(function (a) {
+                        return new BBModel.Answer(a);
                     });
-                }
-                return defer.promise;
+                    return defer.resolve(_this4.answers);
+                });
+            } else {
+                defer.resolve([]);
             }
-        }, {
-            key: 'canCancel',
-            value: function canCancel() {
-                return moment(this.min_cancellation_time).isAfter(moment());
+            return defer.promise;
+        };
+
+        Member_Booking.prototype.printed_price = function printed_price() {
+            if (parseFloat(this.price) % 1 === 0) {
+                return '\xA3' + this.price;
             }
-        }, {
-            key: 'canMove',
-            value: function canMove() {
-                return this.canCancel();
+            return $window.sprintf("£%.2f", parseFloat(this.price));
+        };
+
+        Member_Booking.prototype.$getMember = function $getMember() {
+            var _this5 = this;
+
+            var defer = $q.defer();
+            if (this.member) {
+                defer.resolve(this.member);
             }
-        }, {
-            key: '$update',
-            value: function $update() {
-                return MemberBookingService.update(this);
+            if (this._data.$has('member')) {
+                this._data.$get('member').then(function (member) {
+                    _this5.member = new BBModel.Member.Member(member);
+                    return defer.resolve(_this5.member);
+                });
             }
-        }], [{
-            key: '$query',
-            value: function $query(member, params) {
-                return MemberBookingService.query(member, params);
-            }
-        }, {
-            key: '$cancel',
-            value: function $cancel(member, booking) {
-                return MemberBookingService.cancel(member, booking);
-            }
-        }, {
-            key: '$update',
-            value: function $update(booking) {
-                return MemberBookingService.update(booking);
-            }
-        }, {
-            key: '$flush',
-            value: function $flush(member, params) {
-                return MemberBookingService.flush(member, params);
-            }
-        }]);
+            return defer.promise;
+        };
+
+        Member_Booking.prototype.canCancel = function canCancel() {
+            return moment(this.min_cancellation_time).isAfter(moment());
+        };
+
+        Member_Booking.prototype.canMove = function canMove() {
+            return this.canCancel();
+        };
+
+        Member_Booking.prototype.$update = function $update() {
+            return MemberBookingService.update(this);
+        };
+
+        Member_Booking.$query = function $query(member, params) {
+            return MemberBookingService.query(member, params);
+        };
+
+        Member_Booking.$cancel = function $cancel(member, booking) {
+            return MemberBookingService.cancel(member, booking);
+        };
+
+        Member_Booking.$update = function $update(booking) {
+            return MemberBookingService.update(booking);
+        };
+
+        Member_Booking.$flush = function $flush(member, params) {
+            return MemberBookingService.flush(member, params);
+        };
 
         return Member_Booking;
     }(BaseModel);
 });
 "use strict";
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -1803,35 +1781,28 @@ angular.module('BB.Models').factory("Member.MemberModel", function ($q, MemberSe
         function Member_Member() {
             _classCallCheck(this, Member_Member);
 
-            return _possibleConstructorReturn(this, (Member_Member.__proto__ || Object.getPrototypeOf(Member_Member)).apply(this, arguments));
+            return _possibleConstructorReturn(this, _ClientModel.apply(this, arguments));
         }
 
-        _createClass(Member_Member, [{
-            key: "getBookings",
-            value: function getBookings(params) {
-                return BBModel.Member.Booking.$query(this, params);
-            }
-        }], [{
-            key: "$refresh",
-            value: function $refresh(member) {
-                return MemberService.refresh(member);
-            }
-        }, {
-            key: "$current",
-            value: function $current() {
-                return MemberService.current();
-            }
-        }, {
-            key: "$updateMember",
-            value: function $updateMember(member, params) {
-                return MemberService.updateMember(member, params);
-            }
-        }, {
-            key: "$sendWelcomeEmail",
-            value: function $sendWelcomeEmail(member, params) {
-                return MemberService.sendWelcomeEmail(member, params);
-            }
-        }]);
+        Member_Member.$refresh = function $refresh(member) {
+            return MemberService.refresh(member);
+        };
+
+        Member_Member.$current = function $current() {
+            return MemberService.current();
+        };
+
+        Member_Member.$updateMember = function $updateMember(member, params) {
+            return MemberService.updateMember(member, params);
+        };
+
+        Member_Member.$sendWelcomeEmail = function $sendWelcomeEmail(member, params) {
+            return MemberService.sendWelcomeEmail(member, params);
+        };
+
+        Member_Member.prototype.getBookings = function getBookings(params) {
+            return BBModel.Member.Booking.$query(this, params);
+        };
 
         return Member_Member;
     }(ClientModel);
@@ -1851,7 +1822,7 @@ angular.module("BB.Models").factory("Member.PaymentItemModel", function (BBModel
         function Member_PaymentItem(data) {
             _classCallCheck(this, Member_PaymentItem);
 
-            return _possibleConstructorReturn(this, (Member_PaymentItem.__proto__ || Object.getPrototypeOf(Member_PaymentItem)).call(this, data));
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
         }
 
         return Member_PaymentItem;
@@ -1872,15 +1843,13 @@ angular.module('BB.Models').factory("Member.PrePaidBookingModel", function (Base
         function Member_PrePaidBooking(data) {
             _classCallCheck(this, Member_PrePaidBooking);
 
-            return _possibleConstructorReturn(this, (Member_PrePaidBooking.__proto__ || Object.getPrototypeOf(Member_PrePaidBooking)).call(this, data));
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
         }
 
         return Member_PrePaidBooking;
     }(BaseModel);
 });
 "use strict";
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -1895,7 +1864,7 @@ angular.module("BB.Models").factory("Member.PurchaseModel", function ($q, Member
         function Member_Purchase(data) {
             _classCallCheck(this, Member_Purchase);
 
-            var _this = _possibleConstructorReturn(this, (Member_Purchase.__proto__ || Object.getPrototypeOf(Member_Purchase)).call(this, data));
+            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
 
             _this.created_at = moment.parseZone(_this.created_at);
             if (_this.time_zone) {
@@ -1904,24 +1873,20 @@ angular.module("BB.Models").factory("Member.PurchaseModel", function ($q, Member
             return _this;
         }
 
-        _createClass(Member_Purchase, [{
-            key: "getItems",
-            value: function getItems() {
-                var deferred = $q.defer();
-                this._data.$get('purchase_items').then(function (items) {
-                    this.items = Array.from(items).map(function (item) {
-                        return new BBModel.Member.PurchaseItem(item);
-                    });
-                    return deferred.resolve(this.items);
+        Member_Purchase.prototype.getItems = function getItems() {
+            var deferred = $q.defer();
+            this._data.$get('purchase_items').then(function (items) {
+                this.items = Array.from(items).map(function (item) {
+                    return new BBModel.Member.PurchaseItem(item);
                 });
-                return deferred.promise;
-            }
-        }], [{
-            key: "$query",
-            value: function $query(member, params) {
-                return MemberPurchaseService.query(member, params);
-            }
-        }]);
+                return deferred.resolve(this.items);
+            });
+            return deferred.promise;
+        };
+
+        Member_Purchase.$query = function $query(member, params) {
+            return MemberPurchaseService.query(member, params);
+        };
 
         return Member_Purchase;
     }(BaseModel);
@@ -1941,15 +1906,13 @@ angular.module("BB.Models").factory("Member.PurchaseItemModel", function (BBMode
         function Member_PurchaseItem(data) {
             _classCallCheck(this, Member_PurchaseItem);
 
-            return _possibleConstructorReturn(this, (Member_PurchaseItem.__proto__ || Object.getPrototypeOf(Member_PurchaseItem)).call(this, data));
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
         }
 
         return Member_PurchaseItem;
     }(BaseModel);
 });
 "use strict";
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
@@ -1964,35 +1927,28 @@ angular.module("BB.Models").factory("Member.WalletModel", function (WalletServic
         function Member_Wallet(data) {
             _classCallCheck(this, Member_Wallet);
 
-            return _possibleConstructorReturn(this, (Member_Wallet.__proto__ || Object.getPrototypeOf(Member_Wallet)).call(this, data));
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
         }
 
-        _createClass(Member_Wallet, null, [{
-            key: "$getWalletForMember",
-            value: function $getWalletForMember(member, params) {
-                return WalletService.getWalletForMember(member, params);
-            }
-        }, {
-            key: "$getWalletLogs",
-            value: function $getWalletLogs(wallet) {
-                return WalletService.getWalletLogs(wallet);
-            }
-        }, {
-            key: "$getWalletPurchaseBandsForWallet",
-            value: function $getWalletPurchaseBandsForWallet(wallet) {
-                return WalletService.getWalletPurchaseBandsForWallet(wallet);
-            }
-        }, {
-            key: "$updateWalletForMember",
-            value: function $updateWalletForMember(member, params) {
-                return WalletService.updateWalletForMember(member, params);
-            }
-        }, {
-            key: "$createWalletForMember",
-            value: function $createWalletForMember(member) {
-                return WalletService.createWalletForMember(member);
-            }
-        }]);
+        Member_Wallet.$getWalletForMember = function $getWalletForMember(member, params) {
+            return WalletService.getWalletForMember(member, params);
+        };
+
+        Member_Wallet.$getWalletLogs = function $getWalletLogs(wallet) {
+            return WalletService.getWalletLogs(wallet);
+        };
+
+        Member_Wallet.$getWalletPurchaseBandsForWallet = function $getWalletPurchaseBandsForWallet(wallet) {
+            return WalletService.getWalletPurchaseBandsForWallet(wallet);
+        };
+
+        Member_Wallet.$updateWalletForMember = function $updateWalletForMember(member, params) {
+            return WalletService.updateWalletForMember(member, params);
+        };
+
+        Member_Wallet.$createWalletForMember = function $createWalletForMember(member) {
+            return WalletService.createWalletForMember(member);
+        };
 
         return Member_Wallet;
     }(BaseModel);
@@ -2012,7 +1968,7 @@ angular.module("BB.Models").factory("Member.WalletLogModel", function ($q, BBMod
         function Member_WalletLog(data) {
             _classCallCheck(this, Member_WalletLog);
 
-            var _this = _possibleConstructorReturn(this, (Member_WalletLog.__proto__ || Object.getPrototypeOf(Member_WalletLog)).call(this, data));
+            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
 
             _this.created_at = moment(_this.created_at);
 
@@ -2042,7 +1998,7 @@ angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function (
         function Member_WalletPurchaseBand(data) {
             _classCallCheck(this, Member_WalletPurchaseBand);
 
-            return _possibleConstructorReturn(this, (Member_WalletPurchaseBand.__proto__ || Object.getPrototypeOf(Member_WalletPurchaseBand)).call(this, data));
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
         }
 
         return Member_WalletPurchaseBand;
