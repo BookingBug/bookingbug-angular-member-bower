@@ -876,7 +876,7 @@ angular.module('BBMember').directive('memberForm', function ($rootScope, AlertSe
                             for (var _iterator = Array.from(data.questions)[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
                                 var item = _step.value;
 
-                                item.answer = data.q[item.id].answer;
+                                if (data.q[item.id]) item.answer = data.q[item.id].answer;
                             }
                         } catch (err) {
                             _didIteratorError = true;
