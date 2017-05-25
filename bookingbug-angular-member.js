@@ -729,7 +729,7 @@ angular.module('BBMember').directive('memberBookingsTable', function ($uibModal,
 });
 'use strict';
 
-/*
+/**
  * @ngdoc directive
  * @name BBMember.directive:memberForm
  * @scope
