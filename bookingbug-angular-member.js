@@ -501,6 +501,11 @@ angular.module('BBMember').directive('bbMemberBooking', function () {
         },
         require: ['^?bbMemberUpcomingBookings', '^?bbMemberPastBookings'],
         link: function link(scope, element, attrs, controllers) {
+            var BOOKING_STATUS = {
+                ENQUIRY: 'Enquiry',
+                BOOKING: 'Booking',
+                RESERVATION: 'Reservation'
+            };
 
             scope.actions = [];
 
@@ -516,7 +521,10 @@ angular.module('BBMember').directive('bbMemberBooking', function () {
                 });
             }
 
-            if (scope.booking.paid < scope.booking.price && scope.booking.datetime.isAfter(time_now)) {
+            // The booking is an Enquiry, so the user can not pay
+            if (scope.booking.status === BOOKING_STATUS.ENQUIRY) {
+                scope.actions.push({ disabled: true, label: 'Confirmation pending' });
+            } else if (scope.booking.paid < scope.booking.price && scope.booking.datetime.isAfter(time_now)) {
                 scope.actions.push({ action: member_booking_controller.pay, label: 'Pay' });
             }
 
@@ -1254,41 +1262,64 @@ angular.module('BBMember').directive('bbMemberPurchases', function ($rootScope, 
 });
 'use strict';
 
-angular.module('BBMember').directive('memberSsoLogin', function ($rootScope, LoginService, $sniffer, $timeout, QueryStringService) {
-    return {
-        scope: {
-            token: '@memberSsoLogin',
-            company_id: '@companyId'
-        },
-        transclude: true,
-        template: '<div ng-if=\'member\' ng-transclude></div>',
-        link: function link(scope, element, attrs) {
-            var options = {
-                root: $rootScope.bb.api_url,
-                company_id: scope.company_id
-            };
-            var data = {};
-            if (scope.token) {
-                data.token = scope.token;
-            }
-            if (!data.token) {
-                data.token = QueryStringService('sso_token');
-            }
+/**
+ * @ngdoc directive
+ * @module BBMember
+ * @name memberSsoLogin
+ *
+ * @description
+ * Initialises member login with SSO
+*/
 
-            if ($sniffer.msie && $sniffer.msie < 10 && $rootScope.iframe_proxy_ready === false) {
-                return $timeout(function () {
-                    return LoginService.ssoLogin(options, data).then(function (member) {
-                        return scope.member = member;
-                    });
-                }, 2000);
-            } else {
-                return LoginService.ssoLogin(options, data).then(function (member) {
-                    return scope.member = member;
+(function () {
+    angular.module('BBMember').directive('memberSsoLogin', memberSsoLogin);
+
+    function memberSsoLogin($rootScope, $sniffer, $window, $log, LoginService, QueryStringService, MemberOptions) {
+        return {
+            scope: {
+                token: '@memberSsoLogin',
+                company_id: '@companyId'
+            },
+            transclude: true,
+            template: '<div ng-if=\'member\' ng-transclude></div>',
+            link: link
+        };
+
+        function link(scope, element, attrs) {
+            var handleSso = function handleSso() {
+                var options = {
+                    root: $rootScope.bb.api_url,
+                    company_id: scope.company_id
+                };
+
+                var data = {
+                    token: scope.token ? scope.token : QueryStringService('sso_token')
+                };
+
+                if ($sniffer.msie && $sniffer.msie < 10 && $rootScope.iframe_proxy_ready === false) {
+                    $timeout(function () {
+                        loginSso(options, data);
+                    }, 2000);
+                } else {
+                    loginSso(options, data);
+                }
+            };
+
+            var loginSso = function loginSso(options, data) {
+                LoginService.ssoLogin(options, data).then(function (member) {
+                    scope.member = member;
+                }, function (err) {
+                    if (MemberOptions.ssoErrorRedirectPage) {
+                        $window.location.pathname = MemberOptions.ssoErrorRedirectPage;
+                    }
+                    $log.info(err);
                 });
-            }
+            };
+
+            handleSso();
         }
-    };
-});
+    }
+})();
 'use strict';
 
 angular.module('BBMember').directive('bbMemberUpcomingBookings', function ($rootScope, PaginationService, PurchaseService) {
@@ -2221,6 +2252,42 @@ angular.module('BBMember.Services').factory("MemberService", function ($q, halCl
         }
     };
 });
+'use strict';
+
+/**
+ * @ngdoc service
+ * @module BBMember
+ * @name MemberOptions
+ *
+ * @description
+ * Returns a set of Member configuration options
+*/
+
+(function () {
+
+    angular.module('BBMember').provider('MemberOptions', MemberOptions);
+
+    function MemberOptions() {
+        var options = {
+            ssoErrorRedirectPage: null
+        };
+
+        this.setOption = function (option, value) {
+            if (options.hasOwnProperty(option)) {
+                options[option] = value;
+            }
+        };
+
+        this.getOption = function (option) {
+            if (options.hasOwnProperty(option)) {
+                return options[option];
+            }
+        };
+        this.$get = function () {
+            return options;
+        };
+    }
+})();
 'use strict';
 
 angular.module('BBMember.Services').factory("MemberPrePaidBookingService", function ($q, BBModel) {
