@@ -127,7 +127,7 @@ angular.module('BBMember').controller('MemberBookings', function ($scope, $uibMo
         var index = _.indexOf($scope.upcoming_bookings, booking);
         _.without($scope.upcoming_bookings, booking);
         return BBModel.Member.Booking.$cancel($scope.member, booking).then(function () {
-            AlertService.raise('BOOKING_CANCELLED');
+            AlertService.raise('BOOKING_CANCELLED', booking.datetime);
             $rootScope.$broadcast("booking:cancelled");
             // does a removeBooking method exist in the scope chain?
             if ($scope.removeBooking) {
