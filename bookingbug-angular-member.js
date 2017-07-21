@@ -56,143 +56,157 @@ angular.module('BBMember').run(function ($q, $injector, BBModel) {
 });
 'use strict';
 
-angular.module('BBMember').controller('MemberBookings', function ($scope, $uibModal, $document, $log, $q, ModalForm, $rootScope, AlertService, PurchaseService, LoadingService, BBModel) {
+(function () {
 
-    var loader = LoadingService.$loader($scope);
+    angular.module('BBMember').controller('MemberBookings', MemberBookingCtrl);
 
-    $scope.getUpcomingBookings = function () {
-        var defer = $q.defer();
-        var now = moment();
-        var params = { start_date: now.toISODate() };
-        getBookings(params).then(function (results) {
-            $scope.upcoming_bookings = _.filter(results, function (result) {
-                return result.datetime.isAfter(now);
+    function MemberBookingCtrl($scope, $uibModal, $document, $log, $q, ModalForm, $rootScope, AlertService, PurchaseService, LoadingService, BBModel, WidgetModalService) {
+
+        var loader = LoadingService.$loader($scope);
+
+        $scope.$on('booking:moved', function () {
+            updateBookings();
+        });
+
+        $scope.getUpcomingBookings = function () {
+            var defer = $q.defer();
+            var now = moment();
+            var params = { start_date: now.toISODate() };
+            getBookings(params).then(function (results) {
+                $scope.upcoming_bookings = _.filter(results, function (result) {
+                    return result.datetime.isAfter(now);
+                });
+                return defer.resolve($scope.upcoming_bookings);
+            }, function (err) {
+                return defer.reject([]);
             });
-            return defer.resolve($scope.upcoming_bookings);
-        }, function (err) {
-            return defer.reject([]);
-        });
-        return defer.promise;
-    };
-
-    $scope.getPastBookings = function (num, type) {
-        var date = void 0;
-        var defer = $q.defer();
-        // default to year in the past if no amount is specified
-        if (num && type) {
-            date = moment().subtract(num, type);
-        } else {
-            date = moment().subtract(1, 'year');
-        }
-        var params = {
-            start_date: date.format('YYYY-MM-DD'),
-            end_date: moment().add(1, 'day').format('YYYY-MM-DD')
+            return defer.promise;
         };
-        getBookings(params).then(function (past_bookings) {
-            $scope.past_bookings = _.chain(past_bookings).filter(function (b) {
-                return b.datetime.isBefore(moment());
-            }).sortBy(function (b) {
-                return -b.datetime.unix();
-            }).value();
-            return defer.resolve(past_bookings);
-        }, function (err) {
-            return defer.reject([]);
-        });
-        return defer.promise;
-    };
 
-    $scope.flushBookings = function () {
-        var params = { start_date: moment().format('YYYY-MM-DD') };
-        return $scope.member.$flush('bookings', params);
-    };
-
-    var updateBookings = function updateBookings() {
-        return $scope.getUpcomingBookings();
-    };
-
-    var getBookings = function getBookings(params) {
-        loader.notLoaded();
-        var defer = $q.defer();
-        $scope.member.getBookings(params).then(function (bookings) {
-            loader.setLoaded();
-            return defer.resolve(bookings);
-        }, function (err) {
-            $log.error(err.data);
-            return loader.setLoaded();
-        });
-        return defer.promise;
-    };
-
-    $scope.cancelBooking = function (booking) {
-        var index = _.indexOf($scope.upcoming_bookings, booking);
-        _.without($scope.upcoming_bookings, booking);
-        return BBModel.Member.Booking.$cancel($scope.member, booking).then(function () {
-            AlertService.raise('BOOKING_CANCELLED', booking.datetime);
-            $rootScope.$broadcast("booking:cancelled");
-            // does a removeBooking method exist in the scope chain?
-            if ($scope.removeBooking) {
-                return $scope.removeBooking(booking);
+        $scope.getPastBookings = function (num, type) {
+            var date = void 0;
+            var defer = $q.defer();
+            // default to year in the past if no amount is specified
+            if (num && type) {
+                date = moment().subtract(num, type);
+            } else {
+                date = moment().subtract(1, 'year');
             }
-        }, function (err) {
-            AlertService.raise('GENERIC');
-            return $scope.upcoming_bookings.splice(index, 0, booking);
-        });
-    };
+            var params = {
+                start_date: date.format('YYYY-MM-DD'),
+                end_date: moment().add(1, 'day').format('YYYY-MM-DD')
+            };
+            getBookings(params).then(function (past_bookings) {
+                $scope.past_bookings = _.chain(past_bookings).filter(function (b) {
+                    return b.datetime.isBefore(moment());
+                }).sortBy(function (b) {
+                    return -b.datetime.unix();
+                }).value();
+                return defer.resolve(past_bookings);
+            }, function (err) {
+                return defer.reject([]);
+            });
+            return defer.promise;
+        };
 
-    $scope.getPrePaidBookings = function (params) {
-        var defer = $q.defer();
-        $scope.member.$getPrePaidBookings(params).then(function (bookings) {
-            $scope.pre_paid_bookings = bookings;
-            return defer.resolve(bookings);
-        }, function (err) {
-            defer.reject([]);
-            return $log.error(err.data);
-        });
-        return defer.promise;
-    };
+        $scope.flushBookings = function () {
+            var params = { start_date: moment().format('YYYY-MM-DD') };
+            return $scope.member.$flush('bookings', params);
+        };
 
-    var bookWaitlistSucces = function bookWaitlistSucces() {
-        AlertService.raise('WAITLIST_ACCEPTED');
-        return updateBookings();
-    };
+        var updateBookings = function updateBookings() {
+            return $scope.getUpcomingBookings();
+        };
 
-    var openPaymentModal = function openPaymentModal(_booking, _total) {
-        var modalInstance = $uibModal.open({
-            templateUrl: "booking_payment_modal.html",
-            windowClass: "bbug",
-            size: "lg",
-            controller: function controller($scope, $uibModalInstance, booking, total) {
+        var getBookings = function getBookings(params) {
+            loader.notLoaded();
+            var defer = $q.defer();
+            $scope.member.getBookings(params).then(function (bookings) {
+                loader.setLoaded();
+                return defer.resolve(bookings);
+            }, function (err) {
+                $log.error(err.data);
+                return loader.setLoaded();
+            });
+            return defer.promise;
+        };
 
-                $scope.booking = booking;
-                $scope.total = total;
-
-                $scope.handlePaymentSuccess = function () {
-                    return $uibModalInstance.close(booking);
-                };
-
-                return $scope.cancel = function () {
-                    return $uibModalInstance.dismiss("cancel");
-                };
-            },
-
-
-            resolve: {
-                booking: function booking() {
-                    return _booking;
-                },
-                total: function total() {
-                    return _total;
+        $scope.cancelBooking = function (booking) {
+            var index = _.indexOf($scope.upcoming_bookings, booking);
+            _.without($scope.upcoming_bookings, booking);
+            return BBModel.Member.Booking.$cancel($scope.member, booking).then(function () {
+                AlertService.raise('BOOKING_CANCELLED', booking.datetime);
+                $rootScope.$broadcast("booking:cancelled");
+                // does a removeBooking method exist in the scope chain?
+                if ($scope.removeBooking) {
+                    return $scope.removeBooking(booking);
                 }
-            }
-        });
+            }, function (err) {
+                AlertService.raise('GENERIC');
+                return $scope.upcoming_bookings.splice(index, 0, booking);
+            });
+        };
 
-        return modalInstance.result.then(function (booking) {
-            return bookWaitlistSucces();
-        });
-    };
+        $scope.getPrePaidBookings = function (params) {
+            var defer = $q.defer();
+            $scope.member.$getPrePaidBookings(params).then(function (bookings) {
+                $scope.pre_paid_bookings = bookings;
+                return defer.resolve(bookings);
+            }, function (err) {
+                defer.reject([]);
+                return $log.error(err.data);
+            });
+            return defer.promise;
+        };
 
-    return {
-        edit: function edit(booking) {
+        var bookWaitlistSucces = function bookWaitlistSucces() {
+            AlertService.raise('WAITLIST_ACCEPTED');
+            return updateBookings();
+        };
+
+        var openPaymentModal = function openPaymentModal(_booking, _total) {
+            var modalInstance = $uibModal.open({
+                templateUrl: "booking_payment_modal.html",
+                windowClass: "bbug",
+                size: "lg",
+                controller: function controller($scope, $uibModalInstance, booking, total) {
+                    $scope.booking = booking;
+                    $scope.total = total;
+                    $scope.handlePaymentSuccess = function () {
+                        return $uibModalInstance.close(booking);
+                    };
+                    return $scope.cancel = function () {
+                        return $uibModalInstance.dismiss("cancel");
+                    };
+                },
+
+                resolve: {
+                    booking: function booking() {
+                        return _booking;
+                    },
+                    total: function total() {
+                        return _total;
+                    }
+                }
+            });
+
+            return modalInstance.result.then(function (booking) {
+                return bookWaitlistSucces();
+            });
+        };
+
+        var openCalendarModal = function openCalendarModal(booking, total) {
+            WidgetModalService.open({
+                booking: booking,
+                company_id: booking.company_id,
+                template: 'main_view_booking',
+                total_id: total.long_id,
+                first_page: 'calendar',
+                templateUrl: 'widget_modal.html'
+            });
+        };
+
+        var edit = function edit(booking) {
             return booking.$getAnswers().then(function (answers) {
                 var _iteratorNormalCompletion = true;
                 var _didIteratorError = false;
@@ -227,18 +241,17 @@ angular.module('BBMember').controller('MemberBookings', function ($scope, $uibMo
                     success: updateBookings
                 });
             });
-        },
-        cancel: function cancel(_booking2) {
+        };
+
+        var cancel = function cancel(_booking2) {
             var modalInstance = $uibModal.open({
                 templateUrl: "member_booking_delete_modal.html",
                 windowClass: "bbug",
                 controller: function controller($scope, $rootScope, $uibModalInstance, booking) {
                     $scope.booking = booking;
-
                     $scope.confirm_delete = function () {
                         return $uibModalInstance.close(booking);
                     };
-
                     return $scope.cancel = function () {
                         return $uibModalInstance.dismiss("cancel");
                     };
@@ -253,8 +266,9 @@ angular.module('BBMember').controller('MemberBookings', function ($scope, $uibMo
             return modalInstance.result.then(function (booking) {
                 return $scope.cancelBooking(booking);
             });
-        },
-        book: function book(booking) {
+        };
+
+        var book = function book(booking) {
             loader.notLoaded();
             var params = {
                 purchase_id: booking.purchase_ref,
@@ -266,7 +280,7 @@ angular.module('BBMember').controller('MemberBookings', function ($scope, $uibMo
                     if (purchase_total.$has('new_payment')) {
                         return openPaymentModal(booking, purchase_total);
                     } else {
-                        return $log.error('total is missing new_payment link, this is usually caused by online payment not being configured correctly');
+                        return $log.error('total is missing new_payment link, this is usually caused                                 by online payment not being configured correctly');
                     }
                 } else {
                     return bookWaitlistSucces();
@@ -274,19 +288,40 @@ angular.module('BBMember').controller('MemberBookings', function ($scope, $uibMo
             }, function (err) {
                 return AlertService.raise('NO_WAITLIST_SPACES_LEFT');
             });
+
             return loader.setLoaded();
-        },
-        pay: function pay(booking) {
+        };
+
+        var pay = function pay(booking) {
             var params = {
-                url_root: $scope.$root.bb.api_url,
+                url_root: $rootScope.bb.api_url,
                 purchase_id: booking.purchase_ref
             };
             return PurchaseService.query(params).then(function (total) {
                 return openPaymentModal(booking, total);
             });
-        }
-    };
-});
+        };
+
+        var move = function move(booking) {
+            var params = {
+                url_root: $rootScope.bb.api_url,
+                purchase_id: booking.purchase_ref
+            };
+
+            PurchaseService.query(params).then(function (total) {
+                openCalendarModal(booking, total);
+            });
+        };
+
+        return {
+            edit: edit,
+            cancel: cancel,
+            book: book,
+            pay: pay,
+            move: move
+        };
+    }
+})();
 "use strict";
 
 angular.module("BBMember").controller("MemberPurchases", function ($scope, $q, $log, LoadingService, BBModel) {
@@ -493,26 +528,35 @@ angular.module("BBMember").controller("Wallet", function ($scope, $rootScope, $q
 });
 'use strict';
 
-angular.module('BBMember').directive('bbMemberBooking', function () {
-    return {
-        templateUrl: '_member_booking.html',
-        scope: {
-            booking: '=bbMemberBooking'
-        },
-        require: ['^?bbMemberUpcomingBookings', '^?bbMemberPastBookings'],
-        link: function link(scope, element, attrs, controllers) {
+(function () {
+
+    angular.module('BBMember').directive('bbMemberBooking', bbMemberBooking);
+
+    function bbMemberBooking() {
+        var directive = {
+            templateUrl: '_member_booking.html',
+            scope: {
+                booking: '=bbMemberBooking'
+            },
+            require: ['^?bbMemberUpcomingBookings', '^?bbMemberPastBookings'],
+            link: link
+        };
+
+        return directive;
+
+        function link(scope, element, attrs, controllers) {
             var BOOKING_STATUS = {
                 ENQUIRY: 'Enquiry',
                 BOOKING: 'Booking',
                 RESERVATION: 'Reservation'
             };
 
+            var timeNow = moment();
             scope.actions = [];
 
             var member_booking_controller = controllers[0] ? controllers[0] : controllers[1];
-            var time_now = moment();
 
-            if (scope.booking.on_waitlist && !scope.booking.datetime.isBefore(time_now, 'day')) {
+            if (scope.booking.on_waitlist && !scope.booking.datetime.isBefore(timeNow, 'day')) {
                 scope.actions.push({
                     action: member_booking_controller.book,
                     label: 'Book',
@@ -524,7 +568,7 @@ angular.module('BBMember').directive('bbMemberBooking', function () {
             // The booking is an Enquiry, so the user can not pay
             if (scope.booking.status === BOOKING_STATUS.ENQUIRY) {
                 scope.actions.push({ disabled: true, label: 'Confirmation pending' });
-            } else if (scope.booking.paid < scope.booking.price && scope.booking.datetime.isAfter(time_now)) {
+            } else if (scope.booking.paid < scope.booking.price && scope.booking.datetime.isAfter(timeNow)) {
                 scope.actions.push({ action: member_booking_controller.pay, label: 'Pay' });
             }
 
@@ -534,7 +578,16 @@ angular.module('BBMember').directive('bbMemberBooking', function () {
                 translation_key: 'MEMBER_BOOKING_EDIT'
             });
 
-            if (!scope.booking.datetime.isBefore(time_now, 'day')) {
+            // the booking is movable
+            if (scope.booking.min_cancellation_time.isAfter(timeNow)) {
+                scope.actions.push({
+                    action: member_booking_controller.move,
+                    label: 'Move',
+                    translation_key: 'MEMBER_BOOKING_MOVE'
+                });
+            }
+
+            if (!scope.booking.datetime.isBefore(timeNow, 'day')) {
                 return scope.actions.push({
                     action: member_booking_controller.cancel,
                     label: 'Cancel',
@@ -542,8 +595,8 @@ angular.module('BBMember').directive('bbMemberBooking', function () {
                 });
             }
         }
-    };
-});
+    }
+})();
 'use strict';
 
 angular.module('BBMember').directive('memberBookings', function ($rootScope) {
