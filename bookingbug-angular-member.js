@@ -1285,7 +1285,7 @@ angular.module('BBMember').directive('bbMemberPurchases', function ($rootScope, 
             link: link
         };
 
-        function link(scope, element, attrs) {
+        function link(scope) {
             var handleSso = function handleSso() {
                 var options = {
                     root: $rootScope.bb.api_url,
@@ -1305,14 +1305,22 @@ angular.module('BBMember').directive('bbMemberPurchases', function ($rootScope, 
                 }
             };
 
+            var redirectToErrorPage = function redirectToErrorPage(page) {
+                if (!page.includes('.html')) {
+                    $log.info('configured sso redirect page is not a valid html file');
+                } else {
+                    $window.location.pathname = page;
+                }
+            };
+
             var loginSso = function loginSso(options, data) {
                 LoginService.ssoLogin(options, data).then(function (member) {
                     scope.member = member;
                 }, function (err) {
+                    $log.info('Could not complete member sso login', err);
                     if (MemberOptions.ssoErrorRedirectPage) {
-                        $window.location.pathname = MemberOptions.ssoErrorRedirectPage;
+                        redirectToErrorPage(MemberOptions.ssoErrorRedirectPage);
                     }
-                    $log.info(err);
                 });
             };
 
