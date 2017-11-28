@@ -798,15 +798,17 @@ angular.module('BBMember').directive('memberForm', function ($rootScope, AlertSe
                 for (var k in schema.properties) {
                     var v = schema.properties[k];
                     var vals = k.split(".");
-                    if (vals[0] === "questions" && vals.length > 1) {
-                        if (!schema.properties.questions) {
-                            schema.properties.questions = { type: "object", properties: {} };
+                    var identifier = vals[0];
+
+                    if ((identifier === 'q' || identifier === 'questions') && vals.length > 1) {
+                        if (!schema.properties[identifier]) {
+                            schema.properties[identifier] = { type: 'object', properties: {} };
                         }
-                        if (!schema.properties.questions.properties[vals[1]]) {
-                            schema.properties.questions.properties[vals[1]] = { type: "object", properties: { answer: v } };
+                        if (!schema.properties[identifier].properties[vals[1]]) {
+                            schema.properties[identifier].properties[vals[1]] = { type: 'object', properties: { answer: v } };
                         }
                     }
-                    if (vals[0] === "client" && vals.length > 2) {
+                    if (identifier === "client" && vals.length > 2) {
                         if (!schema.properties.client) {
                             schema.properties.client = {
                                 type: "object",
