@@ -494,6 +494,398 @@ angular.module("BBMember").controller("Wallet", function ($scope, $rootScope, $q
 });
 'use strict';
 
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module('BB.Models').factory("Member.BookingModel", function ($q, $window, $bbug, MemberBookingService, BBModel, BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_Booking, _BaseModel);
+
+        function Member_Booking(data) {
+            _classCallCheck(this, Member_Booking);
+
+            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
+
+            _this.datetime = moment.parseZone(_this.datetime);
+            if (_this.time_zone) {
+                _this.datetime.tz(_this.time_zone);
+            }
+
+            _this.end_datetime = moment.parseZone(_this.end_datetime);
+            if (_this.time_zone) {
+                _this.end_datetime.tz(_this.time_zone);
+            }
+
+            _this.min_cancellation_time = moment(_this.min_cancellation_time);
+            _this.min_cancellation_hours = _this.datetime.diff(_this.min_cancellation_time, 'hours');
+            return _this;
+        }
+
+        Member_Booking.prototype.icalLink = function icalLink() {
+            return this._data.$href('ical');
+        };
+
+        Member_Booking.prototype.webcalLink = function webcalLink() {
+            return this._data.$href('ical');
+        };
+
+        Member_Booking.prototype.gcalLink = function gcalLink() {
+            return this._data.$href('gcal');
+        };
+
+        Member_Booking.prototype.getGroup = function getGroup() {
+            var _this2 = this;
+
+            if (this.group) {
+                return this.group;
+            }
+            if (this._data.$has('event_groups')) {
+                return this._data.$get('event_groups').then(function (group) {
+                    _this2.group = group;
+                    return _this2.group;
+                });
+            }
+        };
+
+        Member_Booking.prototype.getColour = function getColour() {
+            if (this.getGroup()) {
+                return this.getGroup().colour;
+            } else {
+                return "#FFFFFF";
+            }
+        };
+
+        Member_Booking.prototype.getCompany = function getCompany() {
+            var _this3 = this;
+
+            if (this.company) {
+                return this.company;
+            }
+            if (this.$has('company')) {
+                return this._data.$get('company').then(function (company) {
+                    _this3.company = new BBModel.Company(company);
+                    return _this3.company;
+                });
+            }
+        };
+
+        Member_Booking.prototype.getAnswers = function getAnswers() {
+            var _this4 = this;
+
+            var defer = $q.defer();
+            if (this.answers) {
+                defer.resolve(this.answers);
+            }
+            if (this._data.$has('answers')) {
+                this._data.$get('answers').then(function (answers) {
+                    _this4.answers = Array.from(answers).map(function (a) {
+                        return new BBModel.Answer(a);
+                    });
+                    return defer.resolve(_this4.answers);
+                });
+            } else {
+                defer.resolve([]);
+            }
+            return defer.promise;
+        };
+
+        Member_Booking.prototype.printed_price = function printed_price() {
+            if (parseFloat(this.price) % 1 === 0) {
+                return '\xA3' + this.price;
+            }
+            return $window.sprintf("£%.2f", parseFloat(this.price));
+        };
+
+        Member_Booking.prototype.$getMember = function $getMember() {
+            var _this5 = this;
+
+            var defer = $q.defer();
+            if (this.member) {
+                defer.resolve(this.member);
+            }
+            if (this._data.$has('member')) {
+                this._data.$get('member').then(function (member) {
+                    _this5.member = new BBModel.Member.Member(member);
+                    return defer.resolve(_this5.member);
+                });
+            }
+            return defer.promise;
+        };
+
+        Member_Booking.prototype.canCancel = function canCancel() {
+            return moment(this.min_cancellation_time).isAfter(moment());
+        };
+
+        Member_Booking.prototype.canMove = function canMove() {
+            return this.canCancel();
+        };
+
+        Member_Booking.prototype.$update = function $update() {
+            return MemberBookingService.update(this);
+        };
+
+        Member_Booking.$query = function $query(member, params) {
+            return MemberBookingService.query(member, params);
+        };
+
+        Member_Booking.$cancel = function $cancel(member, booking) {
+            return MemberBookingService.cancel(member, booking);
+        };
+
+        Member_Booking.$update = function $update(booking) {
+            return MemberBookingService.update(booking);
+        };
+
+        Member_Booking.$flush = function $flush(member, params) {
+            return MemberBookingService.flush(member, params);
+        };
+
+        return Member_Booking;
+    }(BaseModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module('BB.Models').factory("Member.MemberModel", function ($q, MemberService, BBModel, BaseModel, ClientModel) {
+    return function (_ClientModel) {
+        _inherits(Member_Member, _ClientModel);
+
+        function Member_Member() {
+            _classCallCheck(this, Member_Member);
+
+            return _possibleConstructorReturn(this, _ClientModel.apply(this, arguments));
+        }
+
+        Member_Member.$refresh = function $refresh(member) {
+            return MemberService.refresh(member);
+        };
+
+        Member_Member.$current = function $current() {
+            return MemberService.current();
+        };
+
+        Member_Member.$updateMember = function $updateMember(member, params) {
+            return MemberService.updateMember(member, params);
+        };
+
+        Member_Member.$sendWelcomeEmail = function $sendWelcomeEmail(member, params) {
+            return MemberService.sendWelcomeEmail(member, params);
+        };
+
+        Member_Member.prototype.getBookings = function getBookings(params) {
+            return BBModel.Member.Booking.$query(this, params);
+        };
+
+        return Member_Member;
+    }(ClientModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module("BB.Models").factory("Member.PaymentItemModel", function (BBModel, BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_PaymentItem, _BaseModel);
+
+        function Member_PaymentItem(data) {
+            _classCallCheck(this, Member_PaymentItem);
+
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
+        }
+
+        return Member_PaymentItem;
+    }(BaseModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module('BB.Models').factory("Member.PrePaidBookingModel", function (BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_PrePaidBooking, _BaseModel);
+
+        function Member_PrePaidBooking(data) {
+            _classCallCheck(this, Member_PrePaidBooking);
+
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
+        }
+
+        return Member_PrePaidBooking;
+    }(BaseModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module("BB.Models").factory("Member.PurchaseModel", function ($q, MemberPurchaseService, BBModel, BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_Purchase, _BaseModel);
+
+        function Member_Purchase(data) {
+            _classCallCheck(this, Member_Purchase);
+
+            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
+
+            _this.created_at = moment.parseZone(_this.created_at);
+            if (_this.time_zone) {
+                _this.created_at.tz(_this.time_zone);
+            }
+            return _this;
+        }
+
+        Member_Purchase.prototype.getItems = function getItems() {
+            var deferred = $q.defer();
+            this._data.$get('purchase_items').then(function (items) {
+                this.items = Array.from(items).map(function (item) {
+                    return new BBModel.Member.PurchaseItem(item);
+                });
+                return deferred.resolve(this.items);
+            });
+            return deferred.promise;
+        };
+
+        Member_Purchase.$query = function $query(member, params) {
+            return MemberPurchaseService.query(member, params);
+        };
+
+        return Member_Purchase;
+    }(BaseModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module("BB.Models").factory("Member.PurchaseItemModel", function (BBModel, BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_PurchaseItem, _BaseModel);
+
+        function Member_PurchaseItem(data) {
+            _classCallCheck(this, Member_PurchaseItem);
+
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
+        }
+
+        return Member_PurchaseItem;
+    }(BaseModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module("BB.Models").factory("Member.WalletModel", function (WalletService, BBModel, BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_Wallet, _BaseModel);
+
+        function Member_Wallet(data) {
+            _classCallCheck(this, Member_Wallet);
+
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
+        }
+
+        Member_Wallet.$getWalletForMember = function $getWalletForMember(member, params) {
+            return WalletService.getWalletForMember(member, params);
+        };
+
+        Member_Wallet.$getWalletLogs = function $getWalletLogs(wallet) {
+            return WalletService.getWalletLogs(wallet);
+        };
+
+        Member_Wallet.$getWalletPurchaseBandsForWallet = function $getWalletPurchaseBandsForWallet(wallet) {
+            return WalletService.getWalletPurchaseBandsForWallet(wallet);
+        };
+
+        Member_Wallet.$updateWalletForMember = function $updateWalletForMember(member, params) {
+            return WalletService.updateWalletForMember(member, params);
+        };
+
+        Member_Wallet.$createWalletForMember = function $createWalletForMember(member) {
+            return WalletService.createWalletForMember(member);
+        };
+
+        return Member_Wallet;
+    }(BaseModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module("BB.Models").factory("Member.WalletLogModel", function ($q, BBModel, BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_WalletLog, _BaseModel);
+
+        function Member_WalletLog(data) {
+            _classCallCheck(this, Member_WalletLog);
+
+            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
+
+            _this.created_at = moment(_this.created_at);
+
+            // HACK - if payment amount is less than zero, API returns it as zero!
+            _this.payment_amount = parseFloat(_this.amount) * 100;
+
+            // HACK - new wallet amount should be returned as a integer
+            _this.new_wallet_amount = parseFloat(_this.new_wallet_amount) * 100;
+            return _this;
+        }
+
+        return Member_WalletLog;
+    }(BaseModel);
+});
+"use strict";
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
+
+function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
+
+angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function (BBModel, BaseModel) {
+    return function (_BaseModel) {
+        _inherits(Member_WalletPurchaseBand, _BaseModel);
+
+        function Member_WalletPurchaseBand(data) {
+            _classCallCheck(this, Member_WalletPurchaseBand);
+
+            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
+        }
+
+        return Member_WalletPurchaseBand;
+    }(BaseModel);
+});
+'use strict';
+
 angular.module('BBMember').directive('bbMemberBooking', function () {
     return {
         templateUrl: '_member_booking.html',
@@ -1654,398 +2046,6 @@ angular.module("BB.Directives").directive("bbWalletPurchaseBands", function ($ro
             });
         }
     };
-});
-'use strict';
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module('BB.Models').factory("Member.BookingModel", function ($q, $window, $bbug, MemberBookingService, BBModel, BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_Booking, _BaseModel);
-
-        function Member_Booking(data) {
-            _classCallCheck(this, Member_Booking);
-
-            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
-
-            _this.datetime = moment.parseZone(_this.datetime);
-            if (_this.time_zone) {
-                _this.datetime.tz(_this.time_zone);
-            }
-
-            _this.end_datetime = moment.parseZone(_this.end_datetime);
-            if (_this.time_zone) {
-                _this.end_datetime.tz(_this.time_zone);
-            }
-
-            _this.min_cancellation_time = moment(_this.min_cancellation_time);
-            _this.min_cancellation_hours = _this.datetime.diff(_this.min_cancellation_time, 'hours');
-            return _this;
-        }
-
-        Member_Booking.prototype.icalLink = function icalLink() {
-            return this._data.$href('ical');
-        };
-
-        Member_Booking.prototype.webcalLink = function webcalLink() {
-            return this._data.$href('ical');
-        };
-
-        Member_Booking.prototype.gcalLink = function gcalLink() {
-            return this._data.$href('gcal');
-        };
-
-        Member_Booking.prototype.getGroup = function getGroup() {
-            var _this2 = this;
-
-            if (this.group) {
-                return this.group;
-            }
-            if (this._data.$has('event_groups')) {
-                return this._data.$get('event_groups').then(function (group) {
-                    _this2.group = group;
-                    return _this2.group;
-                });
-            }
-        };
-
-        Member_Booking.prototype.getColour = function getColour() {
-            if (this.getGroup()) {
-                return this.getGroup().colour;
-            } else {
-                return "#FFFFFF";
-            }
-        };
-
-        Member_Booking.prototype.getCompany = function getCompany() {
-            var _this3 = this;
-
-            if (this.company) {
-                return this.company;
-            }
-            if (this.$has('company')) {
-                return this._data.$get('company').then(function (company) {
-                    _this3.company = new BBModel.Company(company);
-                    return _this3.company;
-                });
-            }
-        };
-
-        Member_Booking.prototype.getAnswers = function getAnswers() {
-            var _this4 = this;
-
-            var defer = $q.defer();
-            if (this.answers) {
-                defer.resolve(this.answers);
-            }
-            if (this._data.$has('answers')) {
-                this._data.$get('answers').then(function (answers) {
-                    _this4.answers = Array.from(answers).map(function (a) {
-                        return new BBModel.Answer(a);
-                    });
-                    return defer.resolve(_this4.answers);
-                });
-            } else {
-                defer.resolve([]);
-            }
-            return defer.promise;
-        };
-
-        Member_Booking.prototype.printed_price = function printed_price() {
-            if (parseFloat(this.price) % 1 === 0) {
-                return '\xA3' + this.price;
-            }
-            return $window.sprintf("£%.2f", parseFloat(this.price));
-        };
-
-        Member_Booking.prototype.$getMember = function $getMember() {
-            var _this5 = this;
-
-            var defer = $q.defer();
-            if (this.member) {
-                defer.resolve(this.member);
-            }
-            if (this._data.$has('member')) {
-                this._data.$get('member').then(function (member) {
-                    _this5.member = new BBModel.Member.Member(member);
-                    return defer.resolve(_this5.member);
-                });
-            }
-            return defer.promise;
-        };
-
-        Member_Booking.prototype.canCancel = function canCancel() {
-            return moment(this.min_cancellation_time).isAfter(moment());
-        };
-
-        Member_Booking.prototype.canMove = function canMove() {
-            return this.canCancel();
-        };
-
-        Member_Booking.prototype.$update = function $update() {
-            return MemberBookingService.update(this);
-        };
-
-        Member_Booking.$query = function $query(member, params) {
-            return MemberBookingService.query(member, params);
-        };
-
-        Member_Booking.$cancel = function $cancel(member, booking) {
-            return MemberBookingService.cancel(member, booking);
-        };
-
-        Member_Booking.$update = function $update(booking) {
-            return MemberBookingService.update(booking);
-        };
-
-        Member_Booking.$flush = function $flush(member, params) {
-            return MemberBookingService.flush(member, params);
-        };
-
-        return Member_Booking;
-    }(BaseModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module('BB.Models').factory("Member.MemberModel", function ($q, MemberService, BBModel, BaseModel, ClientModel) {
-    return function (_ClientModel) {
-        _inherits(Member_Member, _ClientModel);
-
-        function Member_Member() {
-            _classCallCheck(this, Member_Member);
-
-            return _possibleConstructorReturn(this, _ClientModel.apply(this, arguments));
-        }
-
-        Member_Member.$refresh = function $refresh(member) {
-            return MemberService.refresh(member);
-        };
-
-        Member_Member.$current = function $current() {
-            return MemberService.current();
-        };
-
-        Member_Member.$updateMember = function $updateMember(member, params) {
-            return MemberService.updateMember(member, params);
-        };
-
-        Member_Member.$sendWelcomeEmail = function $sendWelcomeEmail(member, params) {
-            return MemberService.sendWelcomeEmail(member, params);
-        };
-
-        Member_Member.prototype.getBookings = function getBookings(params) {
-            return BBModel.Member.Booking.$query(this, params);
-        };
-
-        return Member_Member;
-    }(ClientModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module("BB.Models").factory("Member.PaymentItemModel", function (BBModel, BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_PaymentItem, _BaseModel);
-
-        function Member_PaymentItem(data) {
-            _classCallCheck(this, Member_PaymentItem);
-
-            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
-        }
-
-        return Member_PaymentItem;
-    }(BaseModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module('BB.Models').factory("Member.PrePaidBookingModel", function (BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_PrePaidBooking, _BaseModel);
-
-        function Member_PrePaidBooking(data) {
-            _classCallCheck(this, Member_PrePaidBooking);
-
-            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
-        }
-
-        return Member_PrePaidBooking;
-    }(BaseModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module("BB.Models").factory("Member.PurchaseModel", function ($q, MemberPurchaseService, BBModel, BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_Purchase, _BaseModel);
-
-        function Member_Purchase(data) {
-            _classCallCheck(this, Member_Purchase);
-
-            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
-
-            _this.created_at = moment.parseZone(_this.created_at);
-            if (_this.time_zone) {
-                _this.created_at.tz(_this.time_zone);
-            }
-            return _this;
-        }
-
-        Member_Purchase.prototype.getItems = function getItems() {
-            var deferred = $q.defer();
-            this._data.$get('purchase_items').then(function (items) {
-                this.items = Array.from(items).map(function (item) {
-                    return new BBModel.Member.PurchaseItem(item);
-                });
-                return deferred.resolve(this.items);
-            });
-            return deferred.promise;
-        };
-
-        Member_Purchase.$query = function $query(member, params) {
-            return MemberPurchaseService.query(member, params);
-        };
-
-        return Member_Purchase;
-    }(BaseModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module("BB.Models").factory("Member.PurchaseItemModel", function (BBModel, BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_PurchaseItem, _BaseModel);
-
-        function Member_PurchaseItem(data) {
-            _classCallCheck(this, Member_PurchaseItem);
-
-            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
-        }
-
-        return Member_PurchaseItem;
-    }(BaseModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module("BB.Models").factory("Member.WalletModel", function (WalletService, BBModel, BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_Wallet, _BaseModel);
-
-        function Member_Wallet(data) {
-            _classCallCheck(this, Member_Wallet);
-
-            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
-        }
-
-        Member_Wallet.$getWalletForMember = function $getWalletForMember(member, params) {
-            return WalletService.getWalletForMember(member, params);
-        };
-
-        Member_Wallet.$getWalletLogs = function $getWalletLogs(wallet) {
-            return WalletService.getWalletLogs(wallet);
-        };
-
-        Member_Wallet.$getWalletPurchaseBandsForWallet = function $getWalletPurchaseBandsForWallet(wallet) {
-            return WalletService.getWalletPurchaseBandsForWallet(wallet);
-        };
-
-        Member_Wallet.$updateWalletForMember = function $updateWalletForMember(member, params) {
-            return WalletService.updateWalletForMember(member, params);
-        };
-
-        Member_Wallet.$createWalletForMember = function $createWalletForMember(member) {
-            return WalletService.createWalletForMember(member);
-        };
-
-        return Member_Wallet;
-    }(BaseModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module("BB.Models").factory("Member.WalletLogModel", function ($q, BBModel, BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_WalletLog, _BaseModel);
-
-        function Member_WalletLog(data) {
-            _classCallCheck(this, Member_WalletLog);
-
-            var _this = _possibleConstructorReturn(this, _BaseModel.call(this, data));
-
-            _this.created_at = moment(_this.created_at);
-
-            // HACK - if payment amount is less than zero, API returns it as zero!
-            _this.payment_amount = parseFloat(_this.amount) * 100;
-
-            // HACK - new wallet amount should be returned as a integer
-            _this.new_wallet_amount = parseFloat(_this.new_wallet_amount) * 100;
-            return _this;
-        }
-
-        return Member_WalletLog;
-    }(BaseModel);
-});
-"use strict";
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
-
-function _possibleConstructorReturn(self, call) { if (!self) { throw new ReferenceError("this hasn't been initialised - super() hasn't been called"); } return call && (typeof call === "object" || typeof call === "function") ? call : self; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) Object.setPrototypeOf ? Object.setPrototypeOf(subClass, superClass) : subClass.__proto__ = superClass; }
-
-angular.module("BB.Models").factory('Member.WalletPurchaseBandModel', function (BBModel, BaseModel) {
-    return function (_BaseModel) {
-        _inherits(Member_WalletPurchaseBand, _BaseModel);
-
-        function Member_WalletPurchaseBand(data) {
-            _classCallCheck(this, Member_WalletPurchaseBand);
-
-            return _possibleConstructorReturn(this, _BaseModel.call(this, data));
-        }
-
-        return Member_WalletPurchaseBand;
-    }(BaseModel);
 });
 'use strict';
 
